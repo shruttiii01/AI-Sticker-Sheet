@@ -9,6 +9,8 @@ import {
 } from "./components/ExactStickerView";
 import { PaperSetupView } from "./components/PaperSetupView";
 import { SavedOutputsView } from "./components/SavedOutputsView";
+import { PackSheet, StickerPackView } from "./components/StickerPackView";
+import type { PlacedSticker } from "./utils/stickerPack";
 import {
   StickerStudioStep,
   type PhotoMode,
@@ -45,10 +47,14 @@ type PrintTarget =
       kind: "exact";
       copies: ExactCopyLayout;
       showCutGuides: boolean;
+    }
+  | {
+      kind: "pack";
+      pages: PlacedSticker[][];
     };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<AppTab>("booth");
+  const [activeTab, setActiveTab] = useState<AppTab>("stickers");
   const [boothStep, setBoothStep] = useState<BoothStep>("checkin");
 
   // Visitor session state
@@ -270,7 +276,7 @@ export default function App() {
             {/* Zone 1: Single-line Brand Wordmark */}
             <button
               type="button"
-              onClick={() => setActiveTab("booth")}
+              onClick={() => setActiveTab("stickers")}
               className="font-display text-lg font-extrabold tracking-tight text-[#15233F] whitespace-nowrap shrink-0 cursor-pointer"
             >
               AI Sticker Sheet
@@ -281,6 +287,17 @@ export default function App() {
               aria-label="Primary navigation"
               className="flex items-center gap-4 sm:gap-6 text-sm font-medium overflow-x-auto"
             >
+              <button
+                type="button"
+                onClick={() => setActiveTab("stickers")}
+                className={`py-1 whitespace-nowrap shrink-0 border-b-2 transition-colors cursor-pointer ${
+                  activeTab === "stickers"
+                    ? "border-[#15233F] text-[#15233F] font-semibold"
+                    : "border-transparent text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                AI Stickers
+              </button>
               <button
                 type="button"
                 onClick={() => setActiveTab("booth")}
@@ -367,6 +384,12 @@ export default function App() {
 
         {/* Main Workspace */}
         <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 flex-1">
+          {activeTab === "stickers" && (
+            <StickerPackView
+              onPrintPages={(pages) => triggerPrintWithTarget({ kind: "pack", pages })}
+            />
+          )}
+
           {activeTab === "booth" && (
             <>
               {boothStep === "checkin" && (
@@ -459,7 +482,11 @@ export default function App() {
 
       {/* Exact Physical A4 Print Surface (only visible to printer) */}
       <div className="hidden print:block">
-        {activePrintTarget.kind === "exact" ? (
+        {activePrintTarget.kind === "pack" ? (
+          activePrintTarget.pages.map((page, i) => (
+            <PackSheet key={i} page={page} printExact />
+          ))
+        ) : activePrintTarget.kind === "exact" ? (
           <ExactA4Renderer
             copies={activePrintTarget.copies}
             showCutGuides={activePrintTarget.showCutGuides}

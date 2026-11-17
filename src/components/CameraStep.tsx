@@ -18,6 +18,8 @@ interface CameraStepProps {
   onCapturePhoto: (dataUrl: string) => void;
   onBack: () => void;
   onContinue: () => void;
+  /** Number of stickers this photo will become (defaults to the booth's 6). */
+  stickerCount?: number;
 }
 
 export const CameraStep: React.FC<CameraStepProps> = ({
@@ -26,6 +28,7 @@ export const CameraStep: React.FC<CameraStepProps> = ({
   onCapturePhoto,
   onBack,
   onContinue,
+  stickerCount = 6,
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -235,10 +238,10 @@ export const CameraStep: React.FC<CameraStepProps> = ({
             <>
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <p className="text-sm font-semibold text-slate-900">
-                  Ready for your 6 stickers
+                  Ready for your {stickerCount} stickers
                 </p>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Your photo is centered and cropped cleanly so all 6 stickers print sharp on A4.
+                  Your photo is centered and cropped cleanly so all {stickerCount} stickers print sharp on A4.
                 </p>
               </div>
 
@@ -247,7 +250,7 @@ export const CameraStep: React.FC<CameraStepProps> = ({
                 onClick={onContinue}
                 className="w-full min-h-[52px] px-5 py-3 rounded-xl bg-[#15233F] text-white font-display font-semibold text-base flex items-center justify-center gap-2 hover:bg-[#1d3157] transition-colors cursor-pointer"
               >
-                <span>Build 6 Stickers</span>
+                <span>Build {stickerCount} Stickers</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 

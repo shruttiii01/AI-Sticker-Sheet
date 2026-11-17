@@ -2,5 +2,5 @@
   "name": "AI Sticker Sheet",
   "description": "Fast photo-to-A4 sticker sheet booth for the #DYPAICoE launch at Dr. D. Y. Patil B-School, Pune.",
   "requestFramePermissions": ["camera"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_CLAUDE_API"]
 }

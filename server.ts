@@ -4,43 +4,37 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import { GoogleGenAI } from "@google/genai";
+import {
+  StickerError,
+  analyzePerson,
+  asStyle,
+  drawSticker,
+  hasCredentials,
+  MODEL,
+  parseImageDataUrl,
+  type CharacterSheet,
+  type StickerIdea,
+} from "./server/claude";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const ALLOWED_STYLES = ["Flat cartoon", "Comic", "Pixel art"] as const;
-type StickerStyle = (typeof ALLOWED_STYLES)[number];
+// Map the original booth filter styles onto Claude sticker styles.
+const BOOTH_STYLE_MAP: Record<string, string> = {
+  "Flat cartoon": "Flat vector",
+  Comic: "Comic pop",
+  "Pixel art": "Chibi cartoon",
+};
 
-interface AvatarRequestBody {
-  imageDataUrl?: string;
-  style?: string;
-}
-
-function getGeminiClient(): GoogleGenAI | null {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-    return null;
+function sendError(res: Response, err: unknown) {
+  if (err instanceof StickerError) {
+    res.status(err.status).json({ error: err.message });
+    return;
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
-}
-
-function parseDataUrl(dataUrl: string): { mimeType: string; base64Data: string } | null {
-  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!match) return null;
-  return {
-    mimeType: match[1],
-    base64Data: match[2],
-  };
+  console.error(err);
+  res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
 }
 
 async function startServer() {
@@ -50,97 +44,71 @@ async function startServer() {
   app.use(express.json({ limit: "12mb" }));
 
   app.get("/api/health", (_req: Request, res: Response) => {
-    const hasKey = Boolean(
-      process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "MY_GEMINI_API_KEY"
-    );
-    res.json({ ok: true, hasApiKey: hasKey });
+    res.json({ ok: true, hasApiKey: hasCredentials(), model: MODEL });
   });
 
-  app.post("/api/generate-avatar", async (req: Request, res: Response) => {
-    const body = req.body as AvatarRequestBody;
-    const imageDataUrl = body?.imageDataUrl;
-    const requestedStyle = body?.style;
+  // Step 1: Claude studies the photo -> character sheet + sticker ideas.
+  app.post("/api/stickers/analyze", async (req: Request, res: Response) => {
+    const image = parseImageDataUrl(req.body?.imageDataUrl);
+    if (!image) {
+      res.status(400).json({ error: "Missing or invalid photo (expected a base64 image data URL)." });
+      return;
+    }
+    const count = Math.min(12, Math.max(1, Number(req.body?.count) || 6));
+    try {
+      const result = await analyzePerson(image, {
+        count,
+        vibe: String(req.body?.vibe ?? "").slice(0, 200),
+        name: String(req.body?.name ?? "").slice(0, 40),
+      });
+      res.json(result);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
 
-    if (!imageDataUrl || typeof imageDataUrl !== "string") {
+  // Step 2: Claude draws one sticker as SVG (client calls this in parallel).
+  app.post("/api/stickers/draw", async (req: Request, res: Response) => {
+    const image = parseImageDataUrl(req.body?.imageDataUrl);
+    const character = req.body?.character as CharacterSheet | undefined;
+    const idea = req.body?.idea as StickerIdea | undefined;
+    if (!character || !idea?.title) {
+      res.status(400).json({ error: "Missing character sheet or sticker idea." });
+      return;
+    }
+    try {
+      const svg = await drawSticker(image, character, idea, asStyle(req.body?.style));
+      res.json({ svg });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  // Booth "AI Avatar" button: one Claude-drawn portrait sticker.
+  app.post("/api/generate-avatar", async (req: Request, res: Response) => {
+    const image = parseImageDataUrl(req.body?.imageDataUrl);
+    if (!image) {
       res.status(400).json({ error: "Missing captured photo data." });
       return;
     }
-
-    const parsed = parseDataUrl(imageDataUrl);
-    if (!parsed) {
-      res.status(400).json({ error: "Invalid image format. Expected a base64 data URL." });
-      return;
-    }
-
-    const style: StickerStyle = ALLOWED_STYLES.includes(requestedStyle as StickerStyle)
-      ? (requestedStyle as StickerStyle)
-      : "Flat cartoon";
-
-    const ai = getGeminiClient();
-    if (!ai) {
-      res.status(402).json({
-        error:
-          "AI avatar generation requires a billing-enabled Gemini API key in Settings > Secrets. Using visitor photo as-is.",
-        paidKeyRequired: true,
-      });
-      return;
-    }
-
-    const prompt = `Create a friendly flat cartoon sticker avatar of the person in this photo, head and shoulders, big smile, clean bold outlines, simple shading, plain white background, no text, no logos. Keep their hairstyle, glasses and clothing colours recognisable. Flattering and kind. Do not exaggerate or change facial features, skin tone or body shape. Style: ${style}. Do not imitate any film studio, cartoon brand or artist.`;
-
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.1-flash-lite-image",
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                data: parsed.base64Data,
-                mimeType: parsed.mimeType,
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
+      const { character } = await analyzePerson(image, { count: 1, vibe: "", name: "" });
+      const svg = await drawSticker(
+        image,
+        character,
+        {
+          title: "Portrait",
+          caption: "",
+          pose_and_scene:
+            "Head-and-shoulders portrait facing the viewer with a big friendly smile, filling the canvas, no props.",
         },
-        config: {
-          imageConfig: {
-            aspectRatio: "1:1",
-          },
-        },
+        asStyle(BOOTH_STYLE_MAP[String(req.body?.style)] ?? "Flat vector"),
+      );
+      res.json({
+        avatarDataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
       });
-
-      const parts = response.candidates?.[0]?.content?.parts ?? [];
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          const mime = part.inlineData.mimeType ?? "image/png";
-          res.json({
-            avatarDataUrl: `data:${mime};base64,${part.inlineData.data}`,
-          });
-          return;
-        }
-      }
-
-      res.status(502).json({
-        error: "No avatar image was returned by the model. Using visitor photo as-is.",
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      const isQuotaOrBilling =
-        message.includes("429") ||
-        message.includes("403") ||
-        message.includes("RESOURCE_EXHAUSTED") ||
-        message.includes("PERMISSION_DENIED") ||
-        message.toLowerCase().includes("billing") ||
-        message.toLowerCase().includes("quota");
-
-      res.status(isQuotaOrBilling ? 402 : 500).json({
-        error: isQuotaOrBilling
-          ? "AI avatar generation requires a paid Gemini API key (free-tier quota cannot run image generation). Using visitor photo as-is."
-          : `Avatar generation failed (${message}). Using visitor photo as-is.`,
-        paidKeyRequired: isQuotaOrBilling,
-      });
+    } catch (err) {
+      sendError(res, err);
     }
   });
 

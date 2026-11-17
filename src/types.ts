@@ -1,6 +1,6 @@
 export type StickerStyle = "Flat cartoon" | "Comic" | "Pixel art";
 
-export type AppTab = "booth" | "exact" | "paper" | "saved";
+export type AppTab = "stickers" | "booth" | "exact" | "paper" | "saved";
 
 export type BoothStep = "checkin" | "camera" | "studio";
 

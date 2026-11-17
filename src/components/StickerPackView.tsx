@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -31,6 +31,7 @@ type ClaudeStyle = (typeof CLAUDE_STYLES)[number];
 
 const VIBES = [
   "Fun everyday laptop & phone stickers",
+  "Festival & celebration vibes",
   "Tech / coder life",
   "Coffee & study vibes",
   "Gym & sports energy",
@@ -48,6 +49,7 @@ type Status = "queued" | "drawing" | "done" | "error";
 interface StickerSlot {
   idea: Idea;
   status: Status;
+  svg?: string;
   png?: string;
   error?: string;
   include: boolean;
@@ -97,16 +99,23 @@ export const PackSheet: React.FC<{ page: PlacedSticker[]; printExact?: boolean }
 );
 
 interface StickerPackViewProps {
+  stickerTag: string;
   onPrintPages: (pages: PlacedSticker[][]) => void;
 }
 
-export const StickerPackView: React.FC<StickerPackViewProps> = ({ onPrintPages }) => {
+export const StickerPackView: React.FC<StickerPackViewProps> = ({
+  stickerTag,
+  onPrintPages,
+}) => {
+  const stickerTagRef = useRef(stickerTag);
+  stickerTagRef.current = stickerTag;
   const [phase, setPhase] = useState<Phase>("setup");
   const [name, setName] = useState("");
   const [consent, setConsent] = useState(false);
   const [style, setStyle] = useState<ClaudeStyle>("Chibi cartoon");
   const [vibe, setVibe] = useState(VIBES[0]);
   const [count, setCount] = useState(6);
+  const [includeFestival, setIncludeFestival] = useState(true);
   const [photo, setPhoto] = useState<string | null>(null);
 
   const [apiStatus, setApiStatus] = useState<{ hasApiKey: boolean; model?: string } | null>(null);
@@ -129,6 +138,35 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({ onPrintPages }
   const updateSlot = (i: number, patch: Partial<StickerSlot>) =>
     setSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
 
+  // Re-stamp completed stickers immediately whenever the user changes the hashtag in the changer
+  useEffect(() => {
+    let cancelled = false;
+    const readySlots = slots
+      .map((s, idx) => ({ s, idx }))
+      .filter(({ s }) => s.status === "done" && Boolean(s.svg));
+    if (readySlots.length === 0) return;
+
+    void Promise.all(
+      readySlots.map(async ({ s, idx }) => {
+        const png = await svgToDieCutPng(s.svg!, 1024, stickerTag);
+        return { idx, png };
+      }),
+    ).then((updates) => {
+      if (cancelled) return;
+      setSlots((prev) =>
+        prev.map((slot, idx) => {
+          const found = updates.find((u) => u.idx === idx);
+          return found ? { ...slot, png: found.png } : slot;
+        }),
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stickerTag]);
+
   const drawOne = async (i: number, idea: Idea, char: Record<string, string>) => {
     updateSlot(i, { status: "drawing", error: undefined });
     try {
@@ -138,8 +176,8 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({ onPrintPages }
         idea,
         style,
       });
-      const png = await svgToDieCutPng(svg);
-      updateSlot(i, { status: "done", png });
+      const png = await svgToDieCutPng(svg, 1024, stickerTagRef.current);
+      updateSlot(i, { status: "done", svg, png });
     } catch (err) {
       updateSlot(i, {
         status: "error",
@@ -154,10 +192,11 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({ onPrintPages }
     setError(null);
     setSlots([]);
     setCharacter(null);
+    const totalCount = Math.min(12, count + (includeFestival ? 1 : 0));
     try {
       const result = await postJson<{ character: Record<string, string>; ideas: Idea[] }>(
         "/api/stickers/analyze",
-        { imageDataUrl: photo, count, vibe, name },
+        { imageDataUrl: photo, count: totalCount, vibe, name, includeFestival },
       );
       setCharacter(result.character);
       setSlots(result.ideas.map((idea) => ({ idea, status: "queued", include: true })));
@@ -275,14 +314,27 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({ onPrintPages }
               onChange={(e) => setCount(Number(e.target.value))}
               className="w-full min-h-[44px] px-3 rounded-xl border border-slate-200 bg-white"
             >
-              {[3, 4, 6, 8].map((n) => (
+              {[3, 4, 6, 7, 8].map((n) => (
                 <option key={n} value={n}>
-                  {n} stickers
+                  {n} stickers{includeFestival ? ` (+1 Festival = ${Math.min(12, n + 1)})` : ""}
                 </option>
               ))}
             </select>
           </label>
         </div>
+
+        <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/60 border border-amber-200 text-sm text-slate-800 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={includeFestival}
+            onChange={(e) => setIncludeFestival(e.target.checked)}
+            className="mt-1 accent-[#F28C38]"
+          />
+          <span>
+            <strong className="font-semibold">Add +1 Bonus Festival Sticker:</strong>{" "}
+            Includes one extra festive celebration sticker (diya, marigold &amp; sparkles) in your pack.
+          </span>
+        </label>
 
         <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
           <input
@@ -316,7 +368,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({ onPrintPages }
         firstName={name}
         capturedPhoto={photo}
         onCapturePhoto={(url) => setPhoto(url || null)}
-        stickerCount={count}
+        stickerCount={Math.min(12, count + (includeFestival ? 1 : 0))}
         onBack={() => setPhase("setup")}
         onContinue={() => {
           setPhase("studio");

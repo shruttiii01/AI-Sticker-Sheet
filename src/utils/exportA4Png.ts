@@ -1,5 +1,11 @@
-import { A4_HEIGHT_MM, A4_WIDTH_MM, STICKER_THEMES } from "../constants";
+import {
+  A4_HEIGHT_MM,
+  A4_WIDTH_MM,
+  FESTIVAL_STICKER_THEME,
+  STICKER_THEMES,
+} from "../constants";
 import type { PaperConfig } from "../types";
+import { computeA4Slots } from "./sheetLayout";
 
 const DPI = 200;
 const MM_TO_PX = DPI / 25.4;
@@ -154,8 +160,63 @@ function drawCanvasDoodles(
   fw: number,
   fh: number
 ) {
-  const variant = slotIndex % 6;
   const s = Math.min(fw, fh);
+
+  if (slotIndex === 6) {
+    // Festive marigold garland dots across top arch
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(fx + fw * 0.08, fy + fh * 0.1);
+    ctx.quadraticCurveTo(fx + fw * 0.5, fy + fh * 0.22, fx + fw * 0.92, fy + fh * 0.1);
+    ctx.strokeStyle = "#D97706";
+    ctx.lineWidth = Math.max(1.8, s * 0.018);
+    ctx.stroke();
+    const beads = [
+      { x: 0.18, y: 0.13, c: "#F97316" },
+      { x: 0.34, y: 0.155, c: "#FACC15" },
+      { x: 0.5, y: 0.165, c: "#EC4899" },
+      { x: 0.66, y: 0.155, c: "#FACC15" },
+      { x: 0.82, y: 0.13, c: "#F97316" },
+    ];
+    for (const b of beads) {
+      ctx.beginPath();
+      ctx.arc(fx + fw * b.x, fy + fh * b.y, s * 0.042, 0, Math.PI * 2);
+      ctx.fillStyle = b.c;
+      ctx.fill();
+      ctx.strokeStyle = "#15233F";
+      ctx.lineWidth = Math.max(1.2, s * 0.012);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Glowing diya badge bottom-right
+    ctx.save();
+    ctx.translate(fx + fw * 0.82, fy + fh * 0.82);
+    drawRoundedRect(ctx, -s * 0.13, -s * 0.13, s * 0.26, s * 0.26, s * 0.07);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 0.095);
+    ctx.bezierCurveTo(-s * 0.04, -s * 0.02, -s * 0.035, s * 0.01, 0, s * 0.01);
+    ctx.bezierCurveTo(s * 0.035, s * 0.01, s * 0.04, -s * 0.02, 0, -s * 0.095);
+    ctx.fillStyle = "#FDE047";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.09, s * 0.02);
+    ctx.quadraticCurveTo(0, s * 0.13, s * 0.09, s * 0.02);
+    ctx.quadraticCurveTo(0, s * 0.05, -s * 0.09, s * 0.02);
+    ctx.fillStyle = "#D97706";
+    ctx.fill();
+    ctx.strokeStyle = "#15233F";
+    ctx.lineWidth = Math.max(1.4, s * 0.014);
+    ctx.stroke();
+    ctx.restore();
+
+    drawSparkle(ctx, fx + fw * 0.11, fy + fh * 0.81, s * 0.075, "#FACC15");
+    return;
+  }
+
+  const variant = slotIndex % 6;
 
   if (variant === 0) {
     drawCrown(ctx, fx + fw * 0.38, fy - fh * 0.02, s * 0.25, "#FCD34D", -0.14);
@@ -298,8 +359,10 @@ export async function renderA4SheetToPng(params: {
   captions: string[];
   paperConfig: PaperConfig;
   firstName?: string;
+  stickerTag?: string;
 }): Promise<string> {
-  const { photoSrc, captions, paperConfig } = params;
+  const { photoSrc, captions, paperConfig, stickerTag = "#DYPAICoE" } = params;
+  const trimmedTag = stickerTag.trim();
 
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(mm(A4_WIDTH_MM));
@@ -317,30 +380,26 @@ export async function renderA4SheetToPng(params: {
     loadedImg = await loadImage(photoSrc);
   }
 
-  const totalSlots = Math.min(6, paperConfig.columns * paperConfig.rows);
+  const slots = computeA4Slots(paperConfig);
   const layoutVariant =
     paperConfig.layoutVariant ??
     (paperConfig.dieCutWhiteVinyl ? "white-vinyl" : "colored");
   const isWhiteVinyl = layoutVariant === "white-vinyl";
   const isSideBySide = layoutVariant === "side-by-side";
 
-  for (let i = 0; i < totalSlots; i++) {
-    const col = i % paperConfig.columns;
-    const row = Math.floor(i / paperConfig.columns);
-
-    const x = mm(
-      paperConfig.leftMarginMm +
-        col * (paperConfig.labelWidthMm + paperConfig.gapXMm)
-    );
-    const y = mm(
-      paperConfig.topMarginMm +
-        row * (paperConfig.labelHeightMm + paperConfig.gapYMm)
-    );
-    const w = mm(paperConfig.labelWidthMm);
-    const h = mm(paperConfig.labelHeightMm);
+  for (const slot of slots) {
+    const i = slot.index;
+    const isFestival = slot.isFestival;
+    const x = mm(slot.leftMm);
+    const y = mm(slot.topMm);
+    const w = mm(slot.widthMm);
+    const h = mm(slot.heightMm);
     const r = mm(paperConfig.cornerRadiusMm);
+    const isWideHorizontal = isSideBySide || (isFestival && slot.widthMm > slot.heightMm * 1.35);
 
-    const theme = STICKER_THEMES[i % STICKER_THEMES.length];
+    const theme = isFestival
+      ? FESTIVAL_STICKER_THEME
+      : STICKER_THEMES[i % STICKER_THEMES.length];
 
     if (paperConfig.testGridOnly) {
       ctx.save();
@@ -367,7 +426,7 @@ export async function renderA4SheetToPng(params: {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
-        `Slot ${i + 1} (${paperConfig.labelWidthMm}x${paperConfig.labelHeightMm}mm)`,
+        `Slot ${i + 1} (${slot.widthMm}x${slot.heightMm}mm)`,
         cx,
         cy + mm(6)
       );
@@ -387,6 +446,10 @@ export async function renderA4SheetToPng(params: {
       ctx.setLineDash([8, 6]);
       ctx.stroke();
       ctx.setLineDash([]);
+    } else if (isFestival) {
+      ctx.strokeStyle = theme.borderColor;
+      ctx.lineWidth = 3;
+      ctx.stroke();
     } else if (paperConfig.showCutGuides) {
       ctx.strokeStyle = "#94A3B8";
       ctx.lineWidth = 1.5;
@@ -396,9 +459,9 @@ export async function renderA4SheetToPng(params: {
     }
     ctx.restore();
 
-    if (isSideBySide) {
+    if (isWideHorizontal) {
       const pad = mm(3.5);
-      const photoW = w * 0.48 - pad;
+      const photoW = (isFestival ? w * 0.36 : w * 0.48) - pad;
       const photoH = h - pad * 2;
       const photoX = x + pad;
       const photoY = y + pad;
@@ -442,70 +505,97 @@ export async function renderA4SheetToPng(params: {
       }
       ctx.restore();
 
-      // 3 black motion lines top-left
-      ctx.save();
-      ctx.strokeStyle = "#0F172A";
-      ctx.lineWidth = Math.max(2, mm(0.7));
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(photoX, photoY + mm(2));
-      ctx.lineTo(photoX + mm(4), photoY + mm(5));
-      ctx.moveTo(photoX - mm(1.5), photoY + mm(6.5));
-      ctx.lineTo(photoX + mm(3), photoY + mm(7.5));
-      ctx.moveTo(photoX, photoY + mm(11));
-      ctx.lineTo(photoX + mm(4), photoY + mm(9.5));
-      ctx.stroke();
-      ctx.restore();
+      if (isFestival) {
+        drawCanvasDoodles(ctx, 6, photoX, photoY, photoW, photoH);
+      } else {
+        // 3 black motion lines top-left
+        ctx.save();
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = Math.max(2, mm(0.7));
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(photoX, photoY + mm(2));
+        ctx.lineTo(photoX + mm(4), photoY + mm(5));
+        ctx.moveTo(photoX - mm(1.5), photoY + mm(6.5));
+        ctx.lineTo(photoX + mm(3), photoY + mm(7.5));
+        ctx.moveTo(photoX, photoY + mm(11));
+        ctx.lineTo(photoX + mm(4), photoY + mm(9.5));
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Right side stacked caption
-      const caption = (captions[i] ?? "").trim();
+      const caption = (captions[i] ?? (isFestival ? "Festive Vibes" : "")).trim();
       const words = caption.split(/\s+/);
       const lead = words.length > 1 ? words.slice(0, -1).join(" ") : caption;
       const accent = words.length > 1 ? words[words.length - 1] : "";
-      const textCx = x + w * 0.74;
+      const textCx = isFestival ? x + w * 0.68 : x + w * 0.74;
       const textCy = y + h * 0.44;
-      const fSize = Math.min(mm(6.5), h * 0.14);
+      const fSize = isFestival ? Math.min(mm(8), h * 0.17) : Math.min(mm(6.5), h * 0.14);
+      const textMaxW = isFestival ? w * 0.56 : w * 0.44;
 
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      if (isFestival) {
+        ctx.font = `800 ${Math.round(mm(2.6))}px "Plus Jakarta Sans", sans-serif`;
+        ctx.fillStyle = "#B45309";
+        ctx.fillText("FESTIVAL EDITION · SPECIAL STICKER", textCx, y + h * 0.18, textMaxW);
+      }
       ctx.font = `800 ${Math.round(fSize)}px "Plus Jakarta Sans", sans-serif`;
       ctx.fillStyle = "#0F172A";
-      ctx.fillText(lead, textCx, textCy - fSize * 0.55, w * 0.44);
+      ctx.fillText(lead, textCx, textCy - fSize * 0.55, textMaxW);
       if (accent) {
-        ctx.fillStyle = "#DF1B6B";
-        ctx.fillText(accent, textCx, textCy + fSize * 0.55, w * 0.44);
+        ctx.fillStyle = isFestival ? "#EA580C" : "#DF1B6B";
+        ctx.fillText(accent, textCx, textCy + fSize * 0.55, textMaxW);
       }
-      ctx.font = `700 ${Math.round(mm(2.8))}px "Plus Jakarta Sans", sans-serif`;
-      ctx.fillStyle = "#0F172A";
-      ctx.fillText("#DYPAICoE", textCx, textCy + fSize * 1.45, w * 0.44);
-
-      // Pink zig-zag + heart
+      // Zig-zag underline + festive sparkle or heart
+      const zigStart = isFestival ? x + w * 0.55 : x + w * 0.56;
+      const zigEnd = isFestival ? x + w * 0.74 : x + w * 0.72;
       ctx.beginPath();
-      ctx.moveTo(x + w * 0.56, y + h * 0.77);
-      ctx.lineTo(x + w * 0.72, y + h * 0.75);
-      ctx.lineTo(x + w * 0.6, y + h * 0.8);
-      ctx.lineTo(x + w * 0.7, y + h * 0.81);
-      ctx.strokeStyle = "#EC4899";
+      ctx.moveTo(zigStart, y + h * 0.7);
+      ctx.lineTo(zigEnd, y + h * 0.68);
+      ctx.lineTo(zigStart + (zigEnd - zigStart) * 0.25, y + h * 0.73);
+      ctx.lineTo(zigEnd - (zigEnd - zigStart) * 0.1, y + h * 0.74);
+      ctx.strokeStyle = isFestival ? "#F59E0B" : "#EC4899";
       ctx.lineWidth = Math.max(2, mm(0.9));
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.stroke();
-      ctx.restore();
 
-      drawHeart(ctx, x + w * 0.84, y + h * 0.8, mm(3.2), "#F472B6");
+      if (isFestival) {
+        drawSparkle(ctx, x + w * 0.81, y + h * 0.71, mm(3.4), "#FACC15");
+      } else {
+        drawHeart(ctx, x + w * 0.84, y + h * 0.73, mm(3.0), "#F472B6");
+      }
+
+      if (trimmedTag) {
+        const tagFont = Math.round(mm(2.6));
+        ctx.font = `800 ${tagFont}px "Plus Jakarta Sans", sans-serif`;
+        const tagW = Math.min(textMaxW, ctx.measureText(trimmedTag).width + mm(3.2));
+        const tagH = mm(4.0);
+        const tagY = y + h - mm(4.5);
+        drawRoundedRect(ctx, textCx - tagW / 2, tagY - tagH / 2, tagW, tagH, tagH / 2);
+        ctx.fillStyle = "#15233F";
+        ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(trimmedTag, textCx, tagY + tagFont * 0.04, tagW - mm(1.5));
+      }
+      ctx.restore();
       continue;
     }
 
     // Inner organic arch die-cut sticker frame geometry
     const pad = mm(
-      Math.min(paperConfig.labelWidthMm, paperConfig.labelHeightMm) * 0.08
+      Math.min(slot.widthMm, slot.heightMm) * 0.08
     );
-    const captionBandHeight = Math.max(mm(11), h * 0.24);
+    const captionBandHeight = Math.max(mm(13), h * 0.26);
     const frameX = x + pad;
     const frameY = y + pad;
     const frameW = w - pad * 2;
-    const frameH = h - pad * 1.5 - captionBandHeight;
+    const frameH = h - pad * 1.4 - captionBandHeight;
     const whiteBorder = mm(1.25);
     const tilt = SLOT_TILTS_RAD[i % SLOT_TILTS_RAD.length];
 
@@ -563,7 +653,7 @@ export async function renderA4SheetToPng(params: {
 
     // Pastel highlighter brush swipe behind caption
     const caption = (captions[i] ?? "").trim();
-    const captionCenterY = frameY + frameH + (y + h - (frameY + frameH)) / 2;
+    const captionCenterY = frameY + frameH + (y + h - (frameY + frameH)) * 0.4;
     const brushColor = isWhiteVinyl
       ? "rgba(244, 114, 182, 0.22)"
       : BRUSH_HIGHLIGHTS[i % BRUSH_HIGHLIGHTS.length];
@@ -578,17 +668,17 @@ export async function renderA4SheetToPng(params: {
           : "#EC4899";
 
     ctx.save();
-    ctx.translate(x + w / 2, captionCenterY + mm(0.8));
+    ctx.translate(x + w / 2, captionCenterY + mm(0.6));
     ctx.rotate(-0.017);
-    drawRoundedRect(ctx, -w * 0.36, -mm(1.6), w * 0.72, mm(3.2), mm(1.6));
+    drawRoundedRect(ctx, -w * 0.36, -mm(1.5), w * 0.72, mm(3.0), mm(1.5));
     ctx.fillStyle = brushColor;
     ctx.fill();
     ctx.restore();
 
     // Two-tone expressive bold caption + marker underline swoosh
     const fontSizePx = Math.min(
-      mm(5.2),
-      Math.max(mm(3.4), captionBandHeight * 0.4)
+      mm(4.9),
+      Math.max(mm(3.2), captionBandHeight * 0.36)
     );
     const words = caption.split(/\s+/);
     const lead = words.length > 1 ? words.slice(0, -1).join(" ") + " " : caption;
@@ -599,7 +689,6 @@ export async function renderA4SheetToPng(params: {
     ctx.textBaseline = "middle";
     const leadW = ctx.measureText(lead).width;
     const accentW = accent ? ctx.measureText(accent).width : 0;
-    const totalW = Math.min(w - pad * 2, leadW + accentW);
     const scale = leadW + accentW > w - pad * 2 ? (w - pad * 2) / (leadW + accentW) : 1;
 
     ctx.translate(x + w / 2, captionCenterY - mm(0.4));
@@ -617,18 +706,38 @@ export async function renderA4SheetToPng(params: {
     // Marker underline swoosh
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(x + w * 0.22, captionCenterY + mm(3.4));
+    ctx.moveTo(x + w * 0.24, captionCenterY + mm(2.8));
     ctx.quadraticCurveTo(
       x + w * 0.5,
-      captionCenterY + mm(2.2),
-      x + w * 0.78,
-      captionCenterY + mm(3.1)
+      captionCenterY + mm(1.8),
+      x + w * 0.76,
+      captionCenterY + mm(2.6)
     );
     ctx.strokeStyle = accentColor;
-    ctx.lineWidth = Math.max(2, mm(0.55));
+    ctx.lineWidth = Math.max(2, mm(0.5));
     ctx.lineCap = "round";
     ctx.stroke();
     ctx.restore();
+
+    // Lower high-contrast hashtag stamp badge below every sticker caption
+    if (trimmedTag) {
+      ctx.save();
+      const tagFont = Math.round(mm(2.6));
+      ctx.font = `800 ${tagFont}px "Plus Jakarta Sans", sans-serif`;
+      const tagW = Math.min(w - pad * 2, ctx.measureText(trimmedTag).width + mm(3.6));
+      const tagH = mm(4.0);
+      const tagCx = x + w / 2;
+      const tagCy = y + h - mm(3.4);
+      drawRoundedRect(ctx, tagCx - tagW / 2, tagCy - tagH / 2, tagW, tagH, tagH / 2);
+      ctx.fillStyle = !isWhiteVinyl && theme.id === "navy" ? "#FFFFFF" : "#15233F";
+      ctx.fill();
+
+      ctx.fillStyle = !isWhiteVinyl && theme.id === "navy" ? "#15233F" : "#FFFFFF";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(trimmedTag, tagCx, tagCy + tagFont * 0.04, tagW - mm(1.5));
+      ctx.restore();
+    }
   }
 
   return canvas.toDataURL("image/png");

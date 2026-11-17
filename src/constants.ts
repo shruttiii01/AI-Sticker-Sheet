@@ -4,6 +4,14 @@ export const A4_WIDTH_MM = 210;
 export const A4_HEIGHT_MM = 297;
 export const VISITOR_TARGET_SECONDS = 150; // 2 minutes 30 seconds
 
+export const DEFAULT_STICKER_TAG = "#DYPAICoE";
+
+export const STICKER_TAG_PRESETS: string[] = [
+  "#DYPAICoE",
+  "#DYPCOE",
+  "#DYPBS",
+];
+
 export const STICKER_STYLES: StickerStyle[] = [
   "Flat cartoon",
   "Comic",
@@ -62,6 +70,15 @@ export const STICKER_THEMES: StickerTheme[] = [
   },
 ];
 
+export const FESTIVAL_STICKER_THEME: StickerTheme = {
+  id: "festival",
+  name: "Festival Marigold",
+  bgColor: "#FFF3D6",
+  textColor: "#15233F",
+  borderColor: "#F59E0B",
+  photoRingColor: "rgba(245, 158, 11, 0.28)",
+};
+
 export const DEFAULT_CAPTIONS: string[] = [
   "Exam Mode",
   "Placement Ready",
@@ -69,9 +86,10 @@ export const DEFAULT_CAPTIONS: string[] = [
   "Deadline Hero",
   "Topper Energy",
   "#DYPAICoE",
+  "Festive Vibes",
 ];
 
-// 6 defaults + 9 campus B-School & AI CoE captions = 15 total options
+// 6 core + campus B-School + Festival celebration captions
 export const ALL_CAPTIONS: string[] = [
   "Exam Mode",
   "Placement Ready",
@@ -79,6 +97,12 @@ export const ALL_CAPTIONS: string[] = [
   "Deadline Hero",
   "Topper Energy",
   "#DYPAICoE",
+  "Festive Vibes",
+  "Happy Diwali",
+  "Campus Fest",
+  "Dandiya Night",
+  "Holi Splash",
+  "Celebration Mode",
   "Case Study Pro",
   "PPT Survivor",
   "Caffeine Powered",
@@ -103,6 +127,7 @@ export const DEFAULT_PAPER_CONFIG: PaperConfig = {
   showCutGuides: false,
   testGridOnly: false,
   dieCutWhiteVinyl: false,
+  includeFestivalSticker: true,
 };
 
 export interface PaperPreset {

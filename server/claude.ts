@@ -209,7 +209,7 @@ const ANALYSIS_SCHEMA = {
 
 export async function analyzePerson(
   image: ParsedImage,
-  opts: { count: number; vibe: string; name: string },
+  opts: { count: number; vibe: string; name: string; includeFestival?: boolean },
 ): Promise<AnalysisResult> {
   const message = await callClaude({
     max_tokens: 8000,
@@ -234,6 +234,9 @@ export async function analyzePerson(
               `Build the character sheet for the main person in this photo, then propose exactly ${opts.count} sticker ideas.\n` +
               `Theme / vibe for the pack: ${opts.vibe || "fun everyday laptop & phone stickers"}.\n` +
               (opts.name ? `Their first name is ${opts.name}; you may use it in at most one caption.\n` : "") +
+              (opts.includeFestival
+                ? `IMPORTANT: Make sticker #${opts.count} (the final idea) a joyful Indian campus FESTIVAL celebration sticker (props like a glowing diya lamp, marigold flower garland, confetti/sparklers, festive attire flair, and a punchy 2-word caption like "Festive Vibes" or "Celebration Mode").\n`
+                : "") +
               "Each idea: a short title, a punchy caption of at most 3 words (or empty string for no text), and one sentence describing the pose, expression and 1–2 props. " +
               "Make the ideas varied (e.g. waving, coffee, coding on laptop, thumbs-up, celebrating, sleepy, thinking) and positive. " +
               "If no person is clearly visible, set person_found=false and explain briefly.",

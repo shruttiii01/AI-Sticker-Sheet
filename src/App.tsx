@@ -10,6 +10,7 @@ import {
 import { PaperSetupView } from "./components/PaperSetupView";
 import { SavedOutputsView } from "./components/SavedOutputsView";
 import { PackSheet, StickerPackView } from "./components/StickerPackView";
+import { StickerTagChanger } from "./components/StickerTagChanger";
 import type { PlacedSticker } from "./utils/stickerPack";
 import {
   StickerStudioStep,
@@ -32,8 +33,10 @@ import {
   deleteOutputRecord,
   getAllOutputs,
   loadPaperConfig,
+  loadStickerTag,
   saveOutputRecord,
   savePaperConfig,
+  saveStickerTag,
 } from "./utils/storage";
 
 type PrintTarget =
@@ -42,11 +45,13 @@ type PrintTarget =
       photoSrc: string | null;
       captions: string[];
       paperConfig: PaperConfig;
+      stickerTag: string;
     }
   | {
       kind: "exact";
       copies: ExactCopyLayout;
       showCutGuides: boolean;
+      stickerTag: string;
     }
   | {
       kind: "pack";
@@ -76,10 +81,11 @@ export default function App() {
   const [exactCopies, setExactCopies] = useState<ExactCopyLayout>(2);
   const [exactCutGuides, setExactCutGuides] = useState(false);
 
-  // Calibrated A4 paper settings
+  // Calibrated A4 paper settings & sticker stamp tag
   const [paperConfig, setPaperConfig] = useState<PaperConfig>(() =>
     loadPaperConfig()
   );
+  const [stickerTag, setStickerTag] = useState<string>(() => loadStickerTag());
 
   // Saved outputs in IndexedDB
   const [savedOutputs, setSavedOutputs] = useState<SavedOutput[]>([]);
@@ -126,6 +132,11 @@ export default function App() {
   const handlePaperConfigChange = (next: PaperConfig) => {
     setPaperConfig(next);
     savePaperConfig(next);
+  };
+
+  const handleStickerTagChange = (next: string) => {
+    setStickerTag(next);
+    saveStickerTag(next);
   };
 
   const resetVisitorSession = useCallback(() => {
@@ -189,6 +200,7 @@ export default function App() {
       photoSrc: currentActivePhoto,
       captions,
       paperConfig,
+      stickerTag,
     });
   };
 
@@ -201,6 +213,7 @@ export default function App() {
         ...paperConfig,
         testGridOnly: true,
       },
+      stickerTag,
     });
   };
 
@@ -209,6 +222,7 @@ export default function App() {
       kind: "exact",
       copies: exactCopies,
       showCutGuides: exactCutGuides,
+      stickerTag,
     });
   };
 
@@ -228,6 +242,7 @@ export default function App() {
       photoSrc: activePhoto,
       captions: item.captions,
       paperConfig,
+      stickerTag,
     });
   };
 
@@ -256,12 +271,14 @@ export default function App() {
           kind: "exact",
           copies: exactCopies,
           showCutGuides: exactCutGuides,
+          stickerTag,
         }
       : {
           kind: "booth",
           photoSrc: currentActivePhoto,
           captions,
           paperConfig,
+          stickerTag,
         });
 
   const overBudget = elapsedSeconds > VISITOR_TARGET_SECONDS;
@@ -357,35 +374,36 @@ export default function App() {
           </div>
         </header>
 
-        {/* Clean Unboxed Context & Stopwatch Bar */}
+        {/* Clean Context Bar + Global Sticker Stamp Changer */}
         <div className="max-w-6xl w-full mx-auto px-4 sm:px-6 pt-5 pb-2 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-slate-700">
               Dr. D. Y. Patil B-School, Pune
             </span>
             <span aria-hidden="true">·</span>
-            <span>#DYPAICoE Launch</span>
+            <span>{stickerTag.trim() || "#DYPAICoE"} Launch</span>
+            {activeTab === "booth" && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span
+                  className={`font-mono tabular-nums ${
+                    overBudget ? "text-amber-700 font-semibold" : "text-slate-600"
+                  }`}
+                >
+                  Session {formatDuration(elapsedSeconds)} (Target &lt; 02:30)
+                </span>
+              </>
+            )}
           </div>
 
-          {activeTab === "booth" && (
-            <div className="flex items-center gap-2 font-mono tabular-nums">
-              <span
-                className={
-                  overBudget ? "text-amber-700 font-semibold" : "text-slate-600"
-                }
-              >
-                Session {formatDuration(elapsedSeconds)}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>Target &lt; 02:30</span>
-            </div>
-          )}
+          <StickerTagChanger value={stickerTag} onChange={handleStickerTagChange} />
         </div>
 
         {/* Main Workspace */}
         <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 flex-1">
           {activeTab === "stickers" && (
             <StickerPackView
+              stickerTag={stickerTag}
               onPrintPages={(pages) => triggerPrintWithTarget({ kind: "pack", pages })}
             />
           )}
@@ -402,6 +420,7 @@ export default function App() {
                   onChangeConsent={setConsentChecked}
                   captions={captions}
                   paperConfig={paperConfig}
+                  stickerTag={stickerTag}
                   onContinue={() => setBoothStep("camera")}
                 />
               )}
@@ -435,6 +454,7 @@ export default function App() {
                   onChangeCaption={handleCaptionChange}
                   onSetAllCaptions={setCaptions}
                   paperConfig={paperConfig}
+                  stickerTag={stickerTag}
                   onChangePaperConfig={handlePaperConfigChange}
                   onBackToCamera={() => setBoothStep("camera")}
                   onOpenPaperSetup={() => setActiveTab("paper")}
@@ -454,6 +474,7 @@ export default function App() {
               onChangeCopies={setExactCopies}
               showCutGuides={exactCutGuides}
               onChangeShowCutGuides={setExactCutGuides}
+              stickerTag={stickerTag}
               onPrintExact={handlePrintExactSticker}
             />
           )}
@@ -461,6 +482,7 @@ export default function App() {
           {activeTab === "paper" && (
             <PaperSetupView
               paperConfig={paperConfig}
+              stickerTag={stickerTag}
               onChangeConfig={handlePaperConfigChange}
               onPrintTestPage={handlePrintTestPage}
               samplePhotoSrc={currentActivePhoto}
@@ -471,6 +493,7 @@ export default function App() {
             <SavedOutputsView
               outputs={savedOutputs}
               paperConfig={paperConfig}
+              stickerTag={stickerTag}
               onReprintOutput={handleReprintSaved}
               onDeleteOne={handleDeleteOne}
               onDeleteAll={handleDeleteAll}
@@ -490,6 +513,7 @@ export default function App() {
           <ExactA4Renderer
             copies={activePrintTarget.copies}
             showCutGuides={activePrintTarget.showCutGuides}
+            stickerTag={activePrintTarget.stickerTag}
             printExact
           />
         ) : (
@@ -497,6 +521,7 @@ export default function App() {
             photoSrc={activePrintTarget.photoSrc}
             captions={activePrintTarget.captions}
             paperConfig={activePrintTarget.paperConfig}
+            stickerTag={activePrintTarget.stickerTag}
             printExact
           />
         )}

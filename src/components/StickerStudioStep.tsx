@@ -13,6 +13,7 @@ import {
 import {
   ALL_CAPTIONS,
   DEFAULT_CAPTIONS,
+  FESTIVAL_STICKER_THEME,
   STICKER_STYLES,
   STICKER_THEMES,
 } from "../constants";
@@ -36,6 +37,7 @@ interface StickerStudioStepProps {
   onChangeCaption: (index: number, caption: string) => void;
   onSetAllCaptions: (captions: string[]) => void;
   paperConfig: PaperConfig;
+  stickerTag: string;
   onChangePaperConfig: (next: PaperConfig) => void;
   onBackToCamera: () => void;
   onOpenPaperSetup: () => void;
@@ -58,6 +60,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
   onChangeCaption,
   onSetAllCaptions,
   paperConfig,
+  stickerTag,
   onChangePaperConfig,
   onBackToCamera,
   onOpenPaperSetup,
@@ -85,7 +88,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    onSetAllCaptions(pool.slice(0, 6));
+    onSetAllCaptions(pool.slice(0, 7));
   };
 
   const handleResetCaptions = () => {
@@ -135,6 +138,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
         captions,
         paperConfig,
         firstName,
+        stickerTag,
       });
       const link = document.createElement("a");
       const safeName = (firstName.trim() || "visitor")
@@ -326,6 +330,23 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
                 </div>
               </div>
 
+              <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(paperConfig.includeFestivalSticker)}
+                    onChange={(e) =>
+                      onChangePaperConfig({
+                        ...paperConfig,
+                        includeFestivalSticker: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 accent-[#F28C38]"
+                  />
+                  <span>Add +1 Bonus Festival Sticker (7 Stickers on A4)</span>
+                </label>
+              </div>
+
               {avatarMessage && (
                 <p className="text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-3 py-2">
                   {avatarMessage}
@@ -333,11 +354,11 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
               )}
             </div>
 
-            {/* Caption Swap List (6 stickers × 15 caption choices) */}
+            {/* Caption Swap List (6 core + 1 Festival sticker) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-800">
-                  Swap Any Caption (15 options)
+                  Swap Any Caption ({ALL_CAPTIONS.length} options)
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -360,16 +381,24 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {STICKER_THEMES.map((theme, idx) => {
+                {(paperConfig.includeFestivalSticker
+                  ? [...STICKER_THEMES, FESTIVAL_STICKER_THEME]
+                  : STICKER_THEMES
+                ).map((theme, idx) => {
                   const isFocused = selectedSlot === idx;
+                  const isFestival = theme.id === "festival";
                   return (
                     <div
                       key={theme.id}
                       onFocus={() => setSelectedSlot(idx)}
                       className={`flex items-center gap-2.5 p-2 rounded-xl border transition-colors ${
+                        isFestival ? "sm:col-span-2" : ""
+                      } ${
                         isFocused
                           ? "border-[#15233F] bg-slate-50"
-                          : "border-slate-200 bg-white"
+                          : isFestival
+                            ? "border-amber-300 bg-amber-50/40"
+                            : "border-slate-200 bg-white"
                       }`}
                     >
                       <span
@@ -389,7 +418,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
                         </label>
                         <select
                           id={`caption-select-${idx}`}
-                          value={captions[idx] ?? DEFAULT_CAPTIONS[idx]}
+                          value={captions[idx] ?? DEFAULT_CAPTIONS[idx] ?? "Festive Vibes"}
                           onChange={(e) => onChangeCaption(idx, e.target.value)}
                           className="w-full text-sm font-semibold text-slate-900 bg-transparent focus:outline-none cursor-pointer truncate"
                         >
@@ -477,6 +506,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
               photoSrc={activePhoto}
               captions={captions}
               paperConfig={paperConfig}
+              stickerTag={stickerTag}
               selectedSlot={selectedSlot}
               onSelectSlot={setSelectedSlot}
             />
@@ -519,6 +549,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
                 photoSrc={activePhoto}
                 captions={captions}
                 paperConfig={paperConfig}
+                stickerTag={stickerTag}
               />
             </div>
 

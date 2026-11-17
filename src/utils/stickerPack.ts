@@ -132,26 +132,72 @@ function outline(source: HTMLCanvasElement, radius: number, color: string) {
 }
 
 /**
- * Rasterise an SVG sticker at print resolution and wrap it in a thick white
- * die-cut border with a hairline cut guide – the classic vinyl sticker look.
+ * Rasterise an SVG sticker at print resolution, optionally stamp a hashtag
+ * (default "#DYPAICoE"), and wrap it in a thick white die-cut border with a
+ * hairline cut guide – the classic vinyl sticker look.
  */
-export async function svgToDieCutPng(svg: string, artPx = 1024): Promise<string> {
+export async function svgToDieCutPng(
+  svg: string,
+  artPx = 1024,
+  stickerTag = "#DYPAICoE",
+): Promise<string> {
   const img = await loadImage(svgToDataUrl(svg));
   const border = Math.round(artPx * 0.035);
   const pad = border * 2;
   const size = artPx + pad * 2;
+  const tag = stickerTag.trim();
 
   // Draw once, find the artwork's real bounds, then re-draw it centred and
   // scaled to fill the sticker (Claude doesn't always centre the composition).
   const { canvas: raw, ctx: rawCtx } = makeCanvas(artPx);
   rawCtx.drawImage(img, 0, 0, artPx, artPx);
   const box = alphaBounds(raw) ?? { x: 0, y: 0, w: artPx, h: artPx };
-  const scale = artPx / Math.max(box.w, box.h);
+
+  const maxH = tag ? artPx * 0.85 : artPx;
+  const scale = Math.min(artPx / box.w, maxH / box.h);
   const dw = box.w * scale;
   const dh = box.h * scale;
 
   const { canvas: art, ctx: artCtx } = makeCanvas(size);
-  artCtx.drawImage(raw, box.x, box.y, box.w, box.h, pad + (artPx - dw) / 2, pad + (artPx - dh) / 2, dw, dh);
+  artCtx.drawImage(
+    raw,
+    box.x,
+    box.y,
+    box.w,
+    box.h,
+    pad + (artPx - dw) / 2,
+    pad + (maxH - dh) / 2,
+    dw,
+    dh,
+  );
+
+  if (tag) {
+    artCtx.save();
+    const fontPx = Math.round(artPx * 0.062);
+    artCtx.font = `800 ${fontPx}px "Plus Jakarta Sans", Arial, sans-serif`;
+    const measuredW = artCtx.measureText(tag).width;
+    const badgeW = Math.min(artPx * 0.82, measuredW + artPx * 0.08);
+    const badgeH = Math.round(artPx * 0.095);
+    const badgeX = pad + (artPx - badgeW) / 2;
+    const badgeY = pad + artPx * 0.885;
+    const r = badgeH / 2;
+
+    artCtx.beginPath();
+    artCtx.moveTo(badgeX + r, badgeY);
+    artCtx.arcTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + badgeH, r);
+    artCtx.arcTo(badgeX + badgeW, badgeY + badgeH, badgeX, badgeY + badgeH, r);
+    artCtx.arcTo(badgeX, badgeY + badgeH, badgeX, badgeY, r);
+    artCtx.arcTo(badgeX, badgeY, badgeX + badgeW, badgeY, r);
+    artCtx.closePath();
+    artCtx.fillStyle = "#15233F";
+    artCtx.fill();
+
+    artCtx.fillStyle = "#FFFFFF";
+    artCtx.textAlign = "center";
+    artCtx.textBaseline = "middle";
+    artCtx.fillText(tag, pad + artPx / 2, badgeY + badgeH / 2 + fontPx * 0.04, badgeW - artPx * 0.04);
+    artCtx.restore();
+  }
 
   const white = outline(art, border, "#ffffff");
   const cut = outline(art, border + 3, "#c7ccd4");

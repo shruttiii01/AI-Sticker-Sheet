@@ -60,6 +60,7 @@ async function startServer() {
         count,
         vibe: String(req.body?.vibe ?? "").slice(0, 200),
         name: String(req.body?.name ?? "").slice(0, 40),
+        includeFestival: Boolean(req.body?.includeFestival),
       });
       res.json(result);
     } catch (err) {

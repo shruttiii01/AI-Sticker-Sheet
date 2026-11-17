@@ -1,10 +1,29 @@
-import { DEFAULT_PAPER_CONFIG } from "../constants";
+import { DEFAULT_PAPER_CONFIG, DEFAULT_STICKER_TAG } from "../constants";
 import type { PaperConfig, SavedOutput } from "../types";
 
 const PAPER_STORAGE_KEY = "dyp_aicoe_paper_config_v1";
+const TAG_STORAGE_KEY = "dyp_aicoe_sticker_tag_v2";
 const DB_NAME = "dyp_aicoe_sticker_booth";
 const DB_VERSION = 1;
 const STORE_NAME = "outputs";
+
+export function loadStickerTag(): string {
+  try {
+    const raw = localStorage.getItem(TAG_STORAGE_KEY);
+    if (raw === null) return DEFAULT_STICKER_TAG;
+    return raw;
+  } catch {
+    return DEFAULT_STICKER_TAG;
+  }
+}
+
+export function saveStickerTag(tag: string): void {
+  try {
+    localStorage.setItem(TAG_STORAGE_KEY, tag);
+  } catch {
+    // Ignore storage write errors in restricted contexts
+  }
+}
 
 export function loadPaperConfig(): PaperConfig {
   try {

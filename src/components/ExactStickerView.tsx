@@ -79,16 +79,19 @@ export const EXACT_LAYOUTS: Record<ExactCopyLayout, ExactLayoutSpec> = {
 interface ExactA4RendererProps {
   copies: ExactCopyLayout;
   showCutGuides: boolean;
+  stickerTag?: string;
   printExact?: boolean;
 }
 
 export const ExactA4Renderer: React.FC<ExactA4RendererProps> = ({
   copies,
   showCutGuides,
+  stickerTag = "#DYPAICoE",
   printExact = false,
 }) => {
   const spec = EXACT_LAYOUTS[copies];
   const items = Array.from({ length: spec.copies }, (_, idx) => idx);
+  const trimmedTag = stickerTag.trim();
 
   const pctX = (v: number) => `${(v / A4_WIDTH_MM) * 100}%`;
   const pctY = (v: number) => `${(v / A4_HEIGHT_MM) * 100}%`;
@@ -137,8 +140,10 @@ export const ExactA4Renderer: React.FC<ExactA4RendererProps> = ({
                     height: `${spec.heightMm}mm`,
                     border: showCutGuides ? "0.3mm dashed #CBD5E1" : "none",
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
+                    paddingBottom: trimmedTag ? `${spec.heightMm * 0.01}mm` : 0,
                     boxSizing: "border-box",
                   }
                 : {
@@ -149,6 +154,7 @@ export const ExactA4Renderer: React.FC<ExactA4RendererProps> = ({
                     height: pctY(spec.heightMm),
                     border: showCutGuides ? "1px dashed #CBD5E1" : "none",
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
                     boxSizing: "border-box",
@@ -158,8 +164,24 @@ export const ExactA4Renderer: React.FC<ExactA4RendererProps> = ({
             <img
               src={EXACT_STICKER_SRC}
               alt={`Exact laptop sticker ${idx + 1}`}
-              className="w-full h-full object-contain"
+              className={
+                trimmedTag
+                  ? "w-full flex-1 min-h-0 object-contain"
+                  : "w-full h-full object-contain"
+              }
             />
+            {trimmedTag && (
+              <span
+                className="font-display font-extrabold tracking-wide leading-none shrink-0 mt-[1.5%] px-[3.5%] py-[1%] rounded-full bg-[#15233F] text-white"
+                style={{
+                  fontSize: printExact
+                    ? `${Math.min(10, Math.max(6.5, spec.heightMm * 0.085))}pt`
+                    : "clamp(6.5px, 0.95vw, 12px)",
+                }}
+              >
+                {trimmedTag}
+              </span>
+            )}
           </div>
         );
       })}
@@ -172,6 +194,7 @@ interface ExactStickerViewProps {
   onChangeCopies: (copies: ExactCopyLayout) => void;
   showCutGuides: boolean;
   onChangeShowCutGuides: (show: boolean) => void;
+  stickerTag: string;
   onPrintExact: () => void;
 }
 
@@ -180,9 +203,11 @@ export const ExactStickerView: React.FC<ExactStickerViewProps> = ({
   onChangeCopies,
   showCutGuides,
   onChangeShowCutGuides,
+  stickerTag,
   onPrintExact,
 }) => {
   const [exporting, setExporting] = useState(false);
+  const trimmedTag = stickerTag.trim();
 
   const handleDownloadA4Png = async () => {
     setExporting(true);
@@ -226,19 +251,47 @@ export const ExactStickerView: React.FC<ExactStickerViewProps> = ({
         }
 
         // Preserve exact aspect ratio (object-contain) with zero cropping or distortion
-        const boxAspect = w / h;
+        const tagBandH = trimmedTag ? h * 0.13 : 0;
+        const imgBoxH = h - tagBandH;
+        const boxAspect = w / imgBoxH;
         let drawW = w;
-        let drawH = h;
+        let drawH = imgBoxH;
         let drawX = x;
         let drawY = y;
         if (imgAspect > boxAspect) {
           drawH = w / imgAspect;
-          drawY = y + (h - drawH) / 2;
+          drawY = y + (imgBoxH - drawH) / 2;
         } else {
-          drawW = h * imgAspect;
+          drawW = imgBoxH * imgAspect;
           drawX = x + (w - drawW) / 2;
         }
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        if (trimmedTag) {
+          ctx.save();
+          const fontPx = Math.max(14, Math.round(spec.heightMm * 0.082 * mmToPx * 0.36));
+          ctx.font = `800 ${fontPx}px "Plus Jakarta Sans", sans-serif`;
+          const badgeW = Math.min(w * 0.9, ctx.measureText(trimmedTag).width + fontPx * 1.1);
+          const badgeH = fontPx * 1.55;
+          const bx = x + (w - badgeW) / 2;
+          const by = y + h - tagBandH * 0.45 - badgeH / 2;
+          const r = badgeH / 2;
+          ctx.beginPath();
+          ctx.moveTo(bx + r, by);
+          ctx.arcTo(bx + badgeW, by, bx + badgeW, by + badgeH, r);
+          ctx.arcTo(bx + badgeW, by + badgeH, bx, by + badgeH, r);
+          ctx.arcTo(bx, by + badgeH, bx, by, r);
+          ctx.arcTo(bx, by, bx + badgeW, by, r);
+          ctx.closePath();
+          ctx.fillStyle = "#15233F";
+          ctx.fill();
+
+          ctx.fillStyle = "#FFFFFF";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(trimmedTag, x + w / 2, by + badgeH / 2 + fontPx * 0.04, badgeW - fontPx * 0.5);
+          ctx.restore();
+        }
       }
 
       const link = document.createElement("a");
@@ -267,13 +320,18 @@ export const ExactStickerView: React.FC<ExactStickerViewProps> = ({
           </p>
         </div>
 
-        {/* Exact unchanged preview */}
-        <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center">
+        {/* Exact preview + lower active sticker stamp */}
+        <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center gap-2">
           <img
             src={EXACT_STICKER_SRC}
             alt="Exact uploaded laptop sticker"
-            className="w-full max-h-48 object-contain"
+            className="w-full max-h-44 object-contain"
           />
+          {trimmedTag && (
+            <span className="font-display font-extrabold text-xs tracking-wide px-3 py-1 rounded-full bg-[#15233F] text-white">
+              {trimmedTag}
+            </span>
+          )}
         </div>
 
         {/* Copies on A4 */}
@@ -372,7 +430,11 @@ export const ExactStickerView: React.FC<ExactStickerViewProps> = ({
         </div>
 
         <div className="max-w-[420px] mx-auto bg-slate-100 p-3 rounded-xl border border-slate-200">
-          <ExactA4Renderer copies={copies} showCutGuides={showCutGuides} />
+          <ExactA4Renderer
+            copies={copies}
+            showCutGuides={showCutGuides}
+            stickerTag={stickerTag}
+          />
         </div>
       </div>
     </div>

@@ -1,13 +1,20 @@
 import React from "react";
 import { User } from "lucide-react";
-import { A4_HEIGHT_MM, A4_WIDTH_MM, STICKER_THEMES } from "../constants";
+import {
+  A4_HEIGHT_MM,
+  A4_WIDTH_MM,
+  FESTIVAL_STICKER_THEME,
+  STICKER_THEMES,
+} from "../constants";
 import type { PaperConfig } from "../types";
+import { computeA4Slots } from "../utils/sheetLayout";
 import { StickerDoodles } from "./StickerDoodles";
 
 interface A4SheetRendererProps {
   photoSrc: string | null;
   captions: string[];
   paperConfig: PaperConfig;
+  stickerTag?: string;
   selectedSlot?: number | null;
   onSelectSlot?: (index: number) => void;
   printExact?: boolean;
@@ -40,12 +47,13 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
   photoSrc,
   captions,
   paperConfig,
+  stickerTag = "#DYPAICoE",
   selectedSlot = null,
   onSelectSlot,
   printExact = false,
 }) => {
-  const totalSlots = Math.min(6, paperConfig.columns * paperConfig.rows);
-  const slots = Array.from({ length: totalSlots }, (_, idx) => idx);
+  const trimmedTag = stickerTag.trim();
+  const slots = computeA4Slots(paperConfig);
   const layoutVariant =
     paperConfig.layoutVariant ??
     (paperConfig.dieCutWhiteVinyl ? "white-vinyl" : "colored");
@@ -71,6 +79,9 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
         overflow: "hidden",
       };
 
+  const maxRightMm = slots.reduce((m, s) => Math.max(m, s.leftMm + s.widthMm), 0);
+  const maxBottomMm = slots.reduce((m, s) => Math.max(m, s.topMm + s.heightMm), 0);
+
   return (
     <div
       style={containerStyle}
@@ -81,61 +92,60 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
       }
     >
       {/* Subtle margin guide overlay in preview mode only */}
-      {!printExact && (
+      {!printExact && slots.length > 0 && (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 border border-dashed border-slate-200/80"
           style={{
-            top: pctY(paperConfig.topMarginMm),
-            left: pctX(paperConfig.leftMarginMm),
+            top: pctY(slots[0].topMm),
+            left: pctX(slots[0].leftMm),
             right: "auto",
             bottom: "auto",
-            width: pctX(
-              paperConfig.columns * paperConfig.labelWidthMm +
-                Math.max(0, paperConfig.columns - 1) * paperConfig.gapXMm
-            ),
-            height: pctY(
-              paperConfig.rows * paperConfig.labelHeightMm +
-                Math.max(0, paperConfig.rows - 1) * paperConfig.gapYMm
-            ),
+            width: pctX(maxRightMm - slots[0].leftMm),
+            height: pctY(maxBottomMm - slots[0].topMm),
           }}
         />
       )}
 
-      {slots.map((index) => {
-        const col = index % paperConfig.columns;
-        const row = Math.floor(index / paperConfig.columns);
-        const leftMm =
-          paperConfig.leftMarginMm +
-          col * (paperConfig.labelWidthMm + paperConfig.gapXMm);
-        const topMm =
-          paperConfig.topMarginMm +
-          row * (paperConfig.labelHeightMm + paperConfig.gapYMm);
+      {slots.map((slot) => {
+        const index = slot.index;
+        const leftMm = slot.leftMm;
+        const topMm = slot.topMm;
+        const slotWidthMm = slot.widthMm;
+        const slotHeightMm = slot.heightMm;
+        const isFestival = slot.isFestival;
 
-        const theme = STICKER_THEMES[index % STICKER_THEMES.length];
-        const caption = captions[index] ?? "";
+        const theme = isFestival
+          ? FESTIVAL_STICKER_THEME
+          : STICKER_THEMES[index % STICKER_THEMES.length];
+        const caption = captions[index] ?? (isFestival ? "Festive Vibes" : "");
         const isSelected = selectedSlot === index;
+
+        const isWideHorizontal = isSideBySide || (isFestival && slotWidthMm > slotHeightMm * 1.35);
 
         const cardBg = isWhiteVinyl || isSideBySide ? "#FFFFFF" : theme.bgColor;
         const leadTextColor =
           isWhiteVinyl || isSideBySide ? "#0F172A" : theme.textColor;
         const accentTextColor =
-          isWhiteVinyl || isSideBySide
-            ? "#DF1B6B"
-            : theme.id === "navy"
-              ? "#FCD34D"
-              : theme.id === "orange"
-                ? "#FFFFFF"
-                : "#EC4899";
+          isFestival
+            ? "#D97706"
+            : isWhiteVinyl || isSideBySide
+              ? "#DF1B6B"
+              : theme.id === "navy"
+                ? "#FCD34D"
+                : theme.id === "orange"
+                  ? "#FFFFFF"
+                  : "#EC4899";
 
         const slotStyle: React.CSSProperties = printExact
           ? {
               position: "absolute",
               left: `${leftMm}mm`,
               top: `${topMm}mm`,
-              width: `${paperConfig.labelWidthMm}mm`,
-              height: `${paperConfig.labelHeightMm}mm`,
+              width: `${slotWidthMm}mm`,
+              height: `${slotHeightMm}mm`,
               borderRadius: `${paperConfig.cornerRadiusMm}mm`,
+              overflow: "hidden",
               backgroundColor: paperConfig.testGridOnly
                 ? "transparent"
                 : cardBg,
@@ -143,13 +153,15 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                 ? "0.4mm dashed #0F172A"
                 : isWhiteVinyl || isSideBySide
                   ? "0.35mm dashed #CBD5E1"
-                  : paperConfig.showCutGuides
-                    ? "0.3mm dashed #94A3B8"
-                    : "none",
-              padding: `${Math.min(paperConfig.labelWidthMm, paperConfig.labelHeightMm) * 0.065}mm`,
+                  : isFestival
+                    ? `0.45mm solid ${theme.borderColor}`
+                    : paperConfig.showCutGuides
+                      ? "0.3mm dashed #94A3B8"
+                      : "none",
+              padding: `${Math.min(slotWidthMm, slotHeightMm) * 0.065}mm`,
               display: "flex",
-              flexDirection: isSideBySide ? "row" : "column",
-              alignItems: isSideBySide ? "center" : undefined,
+              flexDirection: isWideHorizontal ? "row" : "column",
+              alignItems: isWideHorizontal ? "center" : undefined,
               justifyContent: "space-between",
               boxSizing: "border-box",
             }
@@ -157,9 +169,10 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
               position: "absolute",
               left: pctX(leftMm),
               top: pctY(topMm),
-              width: pctX(paperConfig.labelWidthMm),
-              height: pctY(paperConfig.labelHeightMm),
+              width: pctX(slotWidthMm),
+              height: pctY(slotHeightMm),
               borderRadius: `${(paperConfig.cornerRadiusMm / A4_WIDTH_MM) * 100}% / ${(paperConfig.cornerRadiusMm / A4_HEIGHT_MM) * 100}%`,
+              overflow: "hidden",
               backgroundColor: paperConfig.testGridOnly
                 ? "transparent"
                 : cardBg,
@@ -171,15 +184,15 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                     ? "1.5px solid #E2E8F0"
                     : paperConfig.showCutGuides
                       ? "1px dashed #94A3B8"
-                      : `1px solid ${theme.borderColor}`,
+                      : `1.5px solid ${theme.borderColor}`,
               boxShadow:
-                (isWhiteVinyl || isSideBySide) && !paperConfig.testGridOnly
+                (isWhiteVinyl || isSideBySide || isFestival) && !paperConfig.testGridOnly
                   ? "0 4px 14px rgba(15, 23, 42, 0.08)"
                   : undefined,
-              padding: "2.2%",
+              padding: isWideHorizontal ? "1.6% 2.2%" : "2.0%",
               display: "flex",
-              flexDirection: isSideBySide ? "row" : "column",
-              alignItems: isSideBySide ? "center" : undefined,
+              flexDirection: isWideHorizontal ? "row" : "column",
+              alignItems: isWideHorizontal ? "center" : undefined,
               justifyContent: "space-between",
               boxSizing: "border-box",
             };
@@ -196,8 +209,7 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                     fontSize: printExact ? "8.5pt" : "clamp(8px, 1.1vw, 11px)",
                   }}
                 >
-                  Slot {index + 1} · {paperConfig.labelWidthMm}×
-                  {paperConfig.labelHeightMm}mm
+                  Slot {index + 1} · {slotWidthMm}×{slotHeightMm}mm
                 </span>
               </div>
             </div>
@@ -205,13 +217,15 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
         }
 
         const Tag = onSelectSlot && !printExact ? "button" : "div";
-        const tilt = SLOT_TILTS[index % SLOT_TILTS.length];
-        const brushColor = isWhiteVinyl
-          ? "rgba(244, 114, 182, 0.22)"
-          : BRUSH_HIGHLIGHTS[index % BRUSH_HIGHLIGHTS.length];
+        const tilt = isFestival ? "-0.8deg" : SLOT_TILTS[index % SLOT_TILTS.length];
+        const brushColor = isFestival
+          ? "rgba(250, 204, 21, 0.35)"
+          : isWhiteVinyl
+            ? "rgba(244, 114, 182, 0.22)"
+            : BRUSH_HIGHLIGHTS[index % BRUSH_HIGHLIGHTS.length];
         const { lead, accent } = splitTwoToneCaption(caption);
 
-        if (isSideBySide) {
+        if (isWideHorizontal) {
           return (
             <Tag
               key={index}
@@ -224,10 +238,13 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                   : "gap-[3%]"
               }
             >
-              {/* Left: Portrait with 3 black motion lines at top-left */}
-              <div className="relative w-[50%] h-full flex items-center justify-center">
+              {/* Left: Portrait with Festival or motion doodles */}
+              <div
+                className="relative h-full flex items-center justify-center"
+                style={{ width: isFestival ? "36%" : "50%" }}
+              >
                 <div
-                  className="relative w-full h-[90%] bg-white shadow-sm overflow-hidden border border-slate-200"
+                  className="relative w-full h-[90%] bg-white shadow-sm border border-slate-200"
                   style={{
                     borderRadius: "42% 42% 14% 14%",
                     padding: printExact ? "0.9mm" : "3%",
@@ -248,29 +265,48 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                       <User className="w-1/3 h-1/3 text-slate-300" />
                     )}
                   </div>
+                  {isFestival && <StickerDoodles slotIndex={6} />}
                 </div>
-                {/* 3 black motion lines top-left */}
-                <svg
-                  viewBox="0 0 30 30"
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -top-0.5 -left-0.5 w-[24%] h-[24%]"
-                >
-                  <g stroke="#0F172A" strokeWidth="3" strokeLinecap="round">
-                    <line x1="6" y1="6" x2="14" y2="12" />
-                    <line x1="3" y1="14" x2="12" y2="16" />
-                    <line x1="6" y1="22" x2="14" y2="20" />
-                  </g>
-                </svg>
+                {!isFestival && (
+                  <svg
+                    viewBox="0 0 30 30"
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -top-0.5 -left-0.5 w-[24%] h-[24%]"
+                  >
+                    <g stroke="#0F172A" strokeWidth="3" strokeLinecap="round">
+                      <line x1="6" y1="6" x2="14" y2="12" />
+                      <line x1="3" y1="14" x2="12" y2="16" />
+                      <line x1="6" y1="22" x2="14" y2="20" />
+                    </g>
+                  </svg>
+                )}
               </div>
 
-              {/* Right: Stacked two-tone brush caption + 3 motion lines + zig-zag underline + pink heart */}
-              <div className="relative w-[48%] h-full flex flex-col items-center justify-center text-center pr-[2%]">
+              {/* Right: Stacked two-tone brush caption + festive/zig-zag motif + lower stamp */}
+              <div
+                className="relative h-full flex flex-col items-center justify-center text-center pr-[2%]"
+                style={{ width: isFestival ? "62%" : "48%" }}
+              >
+                {isFestival && (
+                  <span
+                    className="font-display font-extrabold uppercase tracking-widest text-[#B45309] mb-[2%]"
+                    style={{
+                      fontSize: printExact
+                        ? "7pt"
+                        : "clamp(6px, 0.78vw, 9px)",
+                    }}
+                  >
+                    Festival Edition · Special Sticker
+                  </span>
+                )}
                 <span
                   className="font-display font-extrabold leading-[0.98] tracking-tight text-slate-900 truncate w-full"
                   style={{
                     fontSize: printExact
-                      ? `${Math.min(16, Math.max(9.5, paperConfig.labelHeightMm * 0.17))}pt`
-                      : "clamp(10px, 1.45vw, 16px)",
+                      ? `${Math.min(18, Math.max(9.5, slotHeightMm * 0.21))}pt`
+                      : isFestival
+                        ? "clamp(12px, 1.8vw, 20px)"
+                        : "clamp(10px, 1.45vw, 16px)",
                   }}
                 >
                   {lead}
@@ -279,48 +315,62 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                   <span
                     className="font-display font-extrabold leading-[0.98] tracking-tight truncate w-full"
                     style={{
-                      color: "#DF1B6B",
+                      color: isFestival ? "#EA580C" : "#DF1B6B",
                       fontSize: printExact
-                        ? `${Math.min(16.5, Math.max(10, paperConfig.labelHeightMm * 0.175))}pt`
-                        : "clamp(10px, 1.5vw, 17px)",
+                        ? `${Math.min(18.5, Math.max(10, slotHeightMm * 0.22))}pt`
+                        : isFestival
+                          ? "clamp(12px, 1.85vw, 21px)"
+                          : "clamp(10px, 1.5vw, 17px)",
                     }}
                   >
                     {accent}
                   </span>
                 )}
-                <span
-                  className="font-display font-bold text-slate-900 leading-tight mt-[4%] truncate w-full"
-                  style={{
-                    fontSize: printExact
-                      ? `${Math.min(8, Math.max(5.5, paperConfig.labelHeightMm * 0.08))}pt`
-                      : "clamp(6px, 0.75vw, 8.5px)",
-                  }}
-                >
-                  #DYPAICoE
-                </span>
 
-                {/* 3 motion lines left of pink word + zig-zag underline + outlined heart */}
+                {/* Zig-zag underline + festive/heart motif */}
                 <svg
-                  viewBox="0 0 100 32"
+                  viewBox="0 0 120 26"
                   aria-hidden="true"
-                  className="w-full h-[28%] mt-[4%] overflow-visible"
+                  className="w-[75%] h-[18%] mt-[2%] overflow-visible"
                 >
                   <path
-                    d="M8 10 Q38 4 64 9 Q28 16 58 18"
+                    d="M8 10 Q44 3 76 9 Q36 16 68 18"
                     fill="none"
-                    stroke="#EC4899"
-                    strokeWidth="4.2"
+                    stroke={isFestival ? "#F59E0B" : "#EC4899"}
+                    strokeWidth="4"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-                  <path
-                    d="M80 12 C76 6, 68 10, 72 17 C74 21, 80 25, 80 25 C80 25, 86 21, 88 17 C92 10, 84 6, 80 12 Z"
-                    fill="#F472B6"
-                    stroke="#0F172A"
-                    strokeWidth="2.8"
-                    strokeLinejoin="round"
-                  />
+                  {isFestival ? (
+                    <path
+                      d="M96 4 L99 10 L106 12 L99 14 L96 20 L93 14 L86 12 L93 10 Z"
+                      fill="#FACC15"
+                      stroke="#15233F"
+                      strokeWidth="2.2"
+                    />
+                  ) : (
+                    <path
+                      d="M94 9 C90 3, 82 7, 86 14 C88 18, 94 22, 94 22 C94 22, 100 18, 102 14 C106 7, 98 3, 94 9 Z"
+                      fill="#F472B6"
+                      stroke="#0F172A"
+                      strokeWidth="2.6"
+                      strokeLinejoin="round"
+                    />
+                  )}
                 </svg>
+
+                {trimmedTag && (
+                  <span
+                    className="inline-block font-display font-extrabold tracking-wide leading-none mt-[3%] px-[6%] py-[2%] rounded-full bg-[#15233F] text-white truncate max-w-full"
+                    style={{
+                      fontSize: printExact
+                        ? `${Math.min(8.2, Math.max(6, slotHeightMm * 0.095))}pt`
+                        : "clamp(6.5px, 0.85vw, 10px)",
+                    }}
+                  >
+                    {trimmedTag}
+                  </span>
+                )}
               </div>
             </Tag>
           );
@@ -374,20 +424,32 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
               </div>
             </div>
 
-            {/* Expressive two-tone caption + marker brush highlight & underline swoosh */}
+            {/* Expressive two-tone caption + marker brush highlight + lower #DYPAICoE stamp */}
             <div
-              className="relative w-full flex flex-col items-center justify-center shrink-0 overflow-hidden"
+              className="relative w-full flex flex-col items-center justify-center shrink-0"
               style={{
-                height: printExact ? "23%" : "24%",
-                paddingTop: printExact ? "0.4mm" : "1.5%",
+                height: trimmedTag
+                  ? printExact
+                    ? "29%"
+                    : "30%"
+                  : printExact
+                    ? "25%"
+                    : "26%",
+                paddingTop: printExact ? "0.2mm" : "0.5%",
               }}
             >
               <span
                 aria-hidden="true"
                 className="absolute inset-x-[10%] rounded-full pointer-events-none"
                 style={{
-                  height: printExact ? "3.2mm" : "42%",
-                  bottom: printExact ? "1.4mm" : "18%",
+                  height: printExact ? "3mm" : "34%",
+                  bottom: trimmedTag
+                    ? printExact
+                      ? "4.8mm"
+                      : "36%"
+                    : printExact
+                      ? "2.5mm"
+                      : "26%",
                   backgroundColor: brushColor,
                   transform: "rotate(-1deg)",
                 }}
@@ -397,8 +459,8 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                 style={{
                   color: leadTextColor,
                   fontSize: printExact
-                    ? `${Math.min(14.5, Math.max(9.2, paperConfig.labelHeightMm * 0.155))}pt`
-                    : "clamp(9px, 1.3vw, 14.5px)",
+                    ? `${Math.min(13, Math.max(8, slotHeightMm * 0.145))}pt`
+                    : "clamp(8px, 1.15vw, 13px)",
                 }}
               >
                 <span>{lead}</span>
@@ -414,7 +476,7 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                 viewBox="0 0 100 10"
                 preserveAspectRatio="none"
                 aria-hidden="true"
-                className="relative w-[58%] h-[16%] mt-[2%] pointer-events-none"
+                className="relative w-[52%] h-[10%] mt-[1%] pointer-events-none"
               >
                 <path
                   d="M4 6 Q50 1 96 5"
@@ -424,6 +486,22 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
                   strokeLinecap="round"
                 />
               </svg>
+              {trimmedTag && (
+                <span
+                  className="relative font-display font-extrabold tracking-wide leading-none mt-[2.5%] px-[5%] py-[1.6%] rounded-full truncate max-w-[92%]"
+                  style={{
+                    backgroundColor:
+                      !isWhiteVinyl && theme.id === "navy" ? "#FFFFFF" : "#15233F",
+                    color:
+                      !isWhiteVinyl && theme.id === "navy" ? "#15233F" : "#FFFFFF",
+                    fontSize: printExact
+                      ? `${Math.min(7.8, Math.max(5.5, slotHeightMm * 0.088))}pt`
+                      : "clamp(6px, 0.78vw, 9.5px)",
+                  }}
+                >
+                  {trimmedTag}
+                </span>
+              )}
             </div>
           </Tag>
         );

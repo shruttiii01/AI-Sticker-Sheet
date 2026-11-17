@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Download, Printer, Trash2, UserPlus } from "lucide-react";
-import { STICKER_THEMES } from "../constants";
+import { FESTIVAL_STICKER_THEME, STICKER_THEMES } from "../constants";
 import type { PaperConfig, SavedOutput } from "../types";
 import { renderA4SheetToPng } from "../utils/exportA4Png";
 import { formatDuration } from "../utils/image";
@@ -8,6 +8,7 @@ import { formatDuration } from "../utils/image";
 interface SavedOutputsViewProps {
   outputs: SavedOutput[];
   paperConfig: PaperConfig;
+  stickerTag: string;
   onReprintOutput: (output: SavedOutput) => void;
   onDeleteOne: (id: string) => Promise<void>;
   onDeleteAll: () => Promise<void>;
@@ -17,6 +18,7 @@ interface SavedOutputsViewProps {
 export const SavedOutputsView: React.FC<SavedOutputsViewProps> = ({
   outputs,
   paperConfig,
+  stickerTag,
   onReprintOutput,
   onDeleteOne,
   onDeleteAll,
@@ -24,6 +26,7 @@ export const SavedOutputsView: React.FC<SavedOutputsViewProps> = ({
 }) => {
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const trimmedTag = stickerTag.trim();
 
   const getActivePhotoSrc = (item: SavedOutput): string => {
     if (item.photoMode === "ai" || (item.useAvatar && !item.photoMode)) {
@@ -44,6 +47,7 @@ export const SavedOutputsView: React.FC<SavedOutputsViewProps> = ({
         captions: item.captions,
         paperConfig,
         firstName: item.firstName,
+        stickerTag,
       });
       const link = document.createElement("a");
       const safeName = (item.firstName.trim() || "visitor")
@@ -167,27 +171,69 @@ export const SavedOutputsView: React.FC<SavedOutputsViewProps> = ({
                     </button>
                   </div>
 
-                  {/* Mini 6-sticker thumbnail grid */}
-                  <div className="grid grid-cols-3 gap-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                    {STICKER_THEMES.map((theme, idx) => (
+                  {/* Mini 6-sticker thumbnail grid + optional 7th Festival banner */}
+                  <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {STICKER_THEMES.map((theme, idx) => (
+                        <div
+                          key={theme.id}
+                          className="rounded-lg p-1 flex flex-col items-center gap-1"
+                          style={{ backgroundColor: theme.bgColor }}
+                        >
+                          <img
+                            src={activeSrc}
+                            alt={item.captions[idx] ?? ""}
+                            className="w-full aspect-square object-cover rounded-md bg-white"
+                          />
+                          <span
+                            className="text-[9px] font-display font-bold truncate w-full text-center leading-tight"
+                            style={{ color: theme.textColor }}
+                          >
+                            {item.captions[idx] ?? ""}
+                          </span>
+                          {trimmedTag && (
+                            <span
+                              className="text-[7.5px] font-display font-extrabold tracking-wide leading-none px-1.5 py-0.5 rounded-full truncate max-w-full"
+                              style={{
+                                backgroundColor: theme.id === "navy" ? "#FFFFFF" : "#15233F",
+                                color: theme.id === "navy" ? "#15233F" : "#FFFFFF",
+                              }}
+                            >
+                              {trimmedTag}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {(paperConfig.includeFestivalSticker || item.captions[6]) && (
                       <div
-                        key={theme.id}
-                        className="rounded-lg p-1 flex flex-col items-center gap-1"
-                        style={{ backgroundColor: theme.bgColor }}
+                        className="rounded-lg p-1.5 flex items-center gap-2 border"
+                        style={{
+                          backgroundColor: FESTIVAL_STICKER_THEME.bgColor,
+                          borderColor: FESTIVAL_STICKER_THEME.borderColor,
+                        }}
                       >
                         <img
                           src={activeSrc}
-                          alt={item.captions[idx] ?? ""}
-                          className="w-full aspect-square object-cover rounded-md bg-white"
+                          alt={item.captions[6] ?? "Festive Vibes"}
+                          className="w-9 h-9 object-cover rounded-md bg-white shrink-0"
                         />
-                        <span
-                          className="text-[9px] font-display font-bold truncate w-full text-center leading-tight"
-                          style={{ color: theme.textColor }}
-                        >
-                          {item.captions[idx] ?? ""}
-                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[8px] font-display font-extrabold uppercase tracking-wider text-amber-800 leading-none">
+                            +1 Festival Sticker
+                          </p>
+                          <p className="text-[10px] font-display font-extrabold text-[#15233F] truncate">
+                            {item.captions[6] ?? "Festive Vibes"}
+                          </p>
+                        </div>
+                        {trimmedTag && (
+                          <span className="text-[7.5px] font-display font-extrabold tracking-wide leading-none px-1.5 py-0.5 rounded-full bg-[#15233F] text-white shrink-0">
+                            {trimmedTag}
+                          </span>
+                        )}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 

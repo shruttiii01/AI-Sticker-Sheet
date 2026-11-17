@@ -29,3 +29,12 @@ Optional `.env` settings: `STICKER_MODEL` (default `claude-opus-5-5`),
 
 The original booth flow (Booth / Exact Sticker / Paper Setup / Saved tabs) still
 works; its "AI Avatar" button now uses Claude too.
+
+## Deploy on Vercel
+
+1. Push this project to GitHub (or run `npx vercel --prod` from the project root).
+2. In Vercel **Project Settings → Environment Variables**, add:
+   - `ANTHROPIC_API_KEY` = your Anthropic API key (`sk-ant-...`)
+   - Optional: `STICKER_MODEL` (default `claude-opus-5-5`) and `STICKER_EFFORT` (`low` / `medium` / `high`)
+3. Vercel automatically uses `vercel.json` (`npm run build` → `dist/`) and serves `/api/health`, `/api/stickers/analyze`, `/api/stickers/draw`, and `/api/generate-avatar` as serverless functions with 60s timeouts.
+

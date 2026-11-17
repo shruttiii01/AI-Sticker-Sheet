@@ -13,6 +13,7 @@ interface CheckInStepProps {
   onChangeConsent: (checked: boolean) => void;
   captions: string[];
   paperConfig: PaperConfig;
+  stickerTag: string;
   onContinue: () => void;
 }
 
@@ -25,6 +26,7 @@ export const CheckInStep: React.FC<CheckInStepProps> = ({
   onChangeConsent,
   captions,
   paperConfig,
+  stickerTag,
   onContinue,
 }) => {
   const canProceed = consentChecked && firstName.trim().length > 0;
@@ -51,7 +53,8 @@ export const CheckInStep: React.FC<CheckInStepProps> = ({
             Visitor Check-In
           </h1>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Enter your first name, pick your sticker look, and confirm photo consent to snap your 6-sticker A4 sheet.
+            Enter your first name, pick your sticker look, and confirm photo consent to snap your{" "}
+            {paperConfig.includeFestivalSticker ? "6 + 1 Festival sticker" : "6-sticker"} A4 sheet.
           </p>
         </div>
 
@@ -96,7 +99,8 @@ export const CheckInStep: React.FC<CheckInStepProps> = ({
               ))}
             </select>
             <p className="mt-1.5 text-xs text-slate-500">
-              Used for your sheet style & optional AI avatar mode; your photo fits cleanly in all 6 frames.
+              Used for your sheet style & optional AI avatar mode; your photo fits cleanly in all{" "}
+              {paperConfig.includeFestivalSticker ? "7" : "6"} frames.
             </p>
           </div>
 
@@ -160,10 +164,12 @@ export const CheckInStep: React.FC<CheckInStepProps> = ({
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-bold text-slate-900">
-              Your 6-Sticker Sheet Layout
+              {paperConfig.includeFestivalSticker
+                ? "Your 6 + 1 Festival Sticker Layout"
+                : "Your 6-Sticker Sheet Layout"}
             </h2>
             <p className="text-xs text-slate-500">
-              Navy · Orange · Sky · 3 Soft Tints · Bold Captions
+              Navy · Orange · Sky · 3 Soft Tints{paperConfig.includeFestivalSticker ? " · +1 Festival Banner" : ""} · Bold Captions
             </p>
           </div>
           <span className="text-xs font-mono tabular-nums text-slate-500">
@@ -176,6 +182,7 @@ export const CheckInStep: React.FC<CheckInStepProps> = ({
             photoSrc={null}
             captions={captions}
             paperConfig={paperConfig}
+            stickerTag={stickerTag}
           />
         </div>
       </div>

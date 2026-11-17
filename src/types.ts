@@ -29,6 +29,7 @@ export interface PaperConfig {
   testGridOnly: boolean;
   dieCutWhiteVinyl?: boolean;
   layoutVariant?: StickerLayoutVariant;
+  includeFestivalSticker?: boolean;
 }
 
 export interface SavedOutput {

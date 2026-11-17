@@ -10,6 +10,64 @@ interface StickerDoodlesProps {
  * Dream Big thought bubble, mini checklist + smiley, and book stack + pink bow.
  */
 export const StickerDoodles: React.FC<StickerDoodlesProps> = ({ slotIndex }) => {
+  if (slotIndex === 6) {
+    return (
+      <svg
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 w-full h-full overflow-visible"
+      >
+        {/* Festive Marigold Garland across top arch */}
+        <path
+          d="M8 10 Q50 22 92 10"
+          fill="none"
+          stroke="#D97706"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+        <circle cx="18" cy="13" r="4.2" fill="#F97316" stroke="#15233F" strokeWidth="1.2" />
+        <circle cx="34" cy="15.5" r="4.2" fill="#FACC15" stroke="#15233F" strokeWidth="1.2" />
+        <circle cx="50" cy="16.5" r="4.5" fill="#EC4899" stroke="#15233F" strokeWidth="1.2" />
+        <circle cx="66" cy="15.5" r="4.2" fill="#FACC15" stroke="#15233F" strokeWidth="1.2" />
+        <circle cx="82" cy="13" r="4.2" fill="#F97316" stroke="#15233F" strokeWidth="1.2" />
+
+        {/* Glowing Earthen Diya Lamp Bottom-Right */}
+        <g transform="translate(70, 68)">
+          <rect x="0" y="2" width="28" height="28" rx="8" fill="#FFFFFF" opacity="0.92" />
+          {/* Flame */}
+          <path
+            d="M14 4 C10 10, 10.5 16, 14 16 C17.5 16, 18 10, 14 4 Z"
+            fill="#FDE047"
+            stroke="#EA580C"
+            strokeWidth="1.2"
+          />
+          <path
+            d="M14 8 C12.5 11.5, 12.8 14.5, 14 14.5 C15.2 14.5, 15.5 11.5, 14 8 Z"
+            fill="#F97316"
+          />
+          {/* Diya bowl */}
+          <path
+            d="M4 17 Q14 29 24 17 Q14 20 4 17 Z"
+            fill="#D97706"
+            stroke="#15233F"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </g>
+
+        {/* Festive Sparkles Bottom-Left */}
+        <path
+          d="M10 74 L12 79 L17 81 L12 83 L10 88 L8 83 L3 81 L8 79 Z"
+          fill="#FACC15"
+          stroke="#15233F"
+          strokeWidth="1.1"
+        />
+        <circle cx="18" cy="89" r="2.2" fill="#EC4899" stroke="#15233F" strokeWidth="0.9" />
+        <circle cx="6" cy="64" r="2" fill="#F97316" stroke="#15233F" strokeWidth="0.9" />
+      </svg>
+    );
+  }
+
   const variant = slotIndex % 6;
 
   // Slot 0: Jewelled Gold Crown + Sparkles + Pink Heart ("Queen of my Own World" vibe)

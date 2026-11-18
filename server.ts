@@ -15,6 +15,7 @@ import {
   type CharacterSheet,
   type StickerIdea,
 } from "./server/claude";
+import { registerShowcaseRoutes } from "./server/showcase";
 
 dotenv.config();
 
@@ -44,6 +45,10 @@ async function startServer() {
   const port = Number(process.env.PORT) || 3000;
 
   app.use(express.json({ limit: "12mb" }));
+
+  // Live Sticker Showcase: tracked sticker routes, insights wall, live wall, backup pack.
+  // Registered first so its /api/stickers/* handlers (which also record insights) take precedence.
+  registerShowcaseRoutes(app);
 
   app.get("/api/health", (_req: Request, res: Response) => {
     res.json({ ok: true, hasApiKey: hasCredentials(), model: MODEL });
@@ -120,7 +125,7 @@ async function startServer() {
   if (!isProd || !fs.existsSync(distDir)) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: { port: Number(process.env.HMR_PORT) || 24700 } },
       appType: "spa",
     });
     app.use(vite.middlewares);

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Download, Printer, Trash2, UserPlus } from "lucide-react";
-import { FESTIVAL_STICKER_THEME, STICKER_THEMES } from "../constants";
+import { STICKER_THEMES } from "../constants";
 import type { PaperConfig, SavedOutput } from "../types";
 import { renderA4SheetToPng } from "../utils/exportA4Png";
 import { formatDuration } from "../utils/image";
@@ -171,69 +171,40 @@ export const SavedOutputsView: React.FC<SavedOutputsViewProps> = ({
                     </button>
                   </div>
 
-                  {/* Mini 6-sticker thumbnail grid + optional 7th Festival banner */}
-                  <div className="space-y-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {STICKER_THEMES.map((theme, idx) => (
-                        <div
-                          key={theme.id}
-                          className="rounded-lg p-1 flex flex-col items-center gap-1"
-                          style={{ backgroundColor: theme.bgColor }}
-                        >
+                  {/* Mini 6-sticker thumbnail grid */}
+                  <div className="grid grid-cols-3 gap-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                    {STICKER_THEMES.map((theme, idx) => (
+                      <div
+                        key={theme.id}
+                        className="aspect-square rounded-lg p-1.5 flex flex-col items-center justify-between gap-0.5 border border-[#15233F] shadow-[1.5px_1.5px_0_#15233F]"
+                        style={{ backgroundColor: theme.bgColor }}
+                      >
+                        <div className="w-[72%] aspect-square rounded-md bg-white p-[1.5px] border border-[#15233F] overflow-hidden shrink-0">
                           <img
                             src={activeSrc}
                             alt={item.captions[idx] ?? ""}
-                            className="w-full aspect-square object-cover rounded-md bg-white"
+                            className="w-full h-full object-cover rounded-[3px]"
                           />
-                          <span
-                            className="text-[9px] font-display font-bold truncate w-full text-center leading-tight"
-                            style={{ color: theme.textColor }}
-                          >
-                            {item.captions[idx] ?? ""}
-                          </span>
-                          {trimmedTag && (
-                            <span
-                              className="text-[7.5px] font-display font-extrabold tracking-wide leading-none px-1.5 py-0.5 rounded-full truncate max-w-full"
-                              style={{
-                                backgroundColor: theme.id === "navy" ? "#FFFFFF" : "#15233F",
-                                color: theme.id === "navy" ? "#15233F" : "#FFFFFF",
-                              }}
-                            >
-                              {trimmedTag}
-                            </span>
-                          )}
                         </div>
-                      ))}
-                    </div>
-
-                    {(paperConfig.includeFestivalSticker || item.captions[6]) && (
-                      <div
-                        className="rounded-lg p-1.5 flex items-center gap-2 border"
-                        style={{
-                          backgroundColor: FESTIVAL_STICKER_THEME.bgColor,
-                          borderColor: FESTIVAL_STICKER_THEME.borderColor,
-                        }}
-                      >
-                        <img
-                          src={activeSrc}
-                          alt={item.captions[6] ?? "Festive Vibes"}
-                          className="w-9 h-9 object-cover rounded-md bg-white shrink-0"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[8px] font-display font-extrabold uppercase tracking-wider text-amber-800 leading-none">
-                            +1 Festival Sticker
-                          </p>
-                          <p className="text-[10px] font-display font-extrabold text-[#15233F] truncate">
-                            {item.captions[6] ?? "Festive Vibes"}
-                          </p>
-                        </div>
+                        <span
+                          className="text-[8.5px] font-display font-bold truncate w-full text-center leading-tight"
+                          style={{ color: theme.textColor }}
+                        >
+                          {item.captions[idx] ?? ""}
+                        </span>
                         {trimmedTag && (
-                          <span className="text-[7.5px] font-display font-extrabold tracking-wide leading-none px-1.5 py-0.5 rounded-full bg-[#15233F] text-white shrink-0">
+                          <span
+                            className="text-[7.5px] font-display font-extrabold tracking-wide leading-none px-1.5 py-0.5 rounded-full truncate max-w-full"
+                            style={{
+                              backgroundColor: theme.id === "navy" ? "#FFFFFF" : "#15233F",
+                              color: theme.id === "navy" ? "#15233F" : "#FFFFFF",
+                            }}
+                          >
                             {trimmedTag}
                           </span>
                         )}
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
 

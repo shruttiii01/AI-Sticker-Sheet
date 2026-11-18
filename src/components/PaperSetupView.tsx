@@ -8,7 +8,6 @@ import {
   PAPER_PRESETS,
 } from "../constants";
 import type { PaperConfig } from "../types";
-import { computeA4Slots } from "../utils/sheetLayout";
 import { A4SheetRenderer } from "./A4SheetRenderer";
 
 interface PaperSetupViewProps {
@@ -35,20 +34,15 @@ export const PaperSetupView: React.FC<PaperSetupViewProps> = ({
     });
   };
 
-  const slots = computeA4Slots(paperConfig);
-  const totalUsedWidthMm = slots.reduce(
-    (max, slot) => Math.max(max, slot.leftMm + slot.widthMm),
+  const totalUsedWidthMm =
     paperConfig.leftMarginMm +
-      paperConfig.columns * paperConfig.labelWidthMm +
-      Math.max(0, paperConfig.columns - 1) * paperConfig.gapXMm,
-  );
+    paperConfig.columns * paperConfig.labelWidthMm +
+    Math.max(0, paperConfig.columns - 1) * paperConfig.gapXMm;
 
-  const totalUsedHeightMm = slots.reduce(
-    (max, slot) => Math.max(max, slot.topMm + slot.heightMm),
+  const totalUsedHeightMm =
     paperConfig.topMarginMm +
-      paperConfig.rows * paperConfig.labelHeightMm +
-      Math.max(0, paperConfig.rows - 1) * paperConfig.gapYMm,
-  );
+    paperConfig.rows * paperConfig.labelHeightMm +
+    Math.max(0, paperConfig.rows - 1) * paperConfig.gapYMm;
 
   const exceedsWidth = totalUsedWidthMm > A4_WIDTH_MM;
   const exceedsHeight = totalUsedHeightMm > A4_HEIGHT_MM;
@@ -298,28 +292,7 @@ export const PaperSetupView: React.FC<PaperSetupViewProps> = ({
 
         {/* Print Options & Alignment Test */}
         <div className="pt-3 border-t border-slate-100 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
-              <input
-                type="checkbox"
-                checked={Boolean(paperConfig.includeFestivalSticker)}
-                onChange={(e) =>
-                  onChangeConfig({
-                    ...paperConfig,
-                    includeFestivalSticker: e.target.checked,
-                  })
-                }
-                className="w-4 h-4 accent-[#15233F]"
-              />
-              <div>
-                <p className="text-xs font-semibold text-slate-900">
-                  +1 Festival Sticker
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Adds 7th Festival slot on A4
-                </p>
-              </div>
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
             <label className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50">
               <input

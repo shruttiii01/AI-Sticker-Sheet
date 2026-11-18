@@ -13,7 +13,6 @@ import {
 import {
   ALL_CAPTIONS,
   DEFAULT_CAPTIONS,
-  FESTIVAL_STICKER_THEME,
   STICKER_STYLES,
   STICKER_THEMES,
 } from "../constants";
@@ -88,7 +87,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    onSetAllCaptions(pool.slice(0, 7));
+    onSetAllCaptions(pool.slice(0, 6));
   };
 
   const handleResetCaptions = () => {
@@ -237,7 +236,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   {STICKER_STYLES.map((opt) => (
                     <button
                       key={opt}
@@ -273,7 +272,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
 
               <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-800">
-                  Sticker Layout
+                  Square Sticker Theme
                 </span>
                 <div className="inline-flex flex-wrap rounded-lg bg-slate-200/70 p-0.5">
                   <button
@@ -286,12 +285,12 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
                       })
                     }
                     className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                      (paperConfig.layoutVariant ?? (paperConfig.dieCutWhiteVinyl ? "white-vinyl" : "colored")) === "colored"
+                      (paperConfig.layoutVariant ?? (paperConfig.dieCutWhiteVinyl ? "white-vinyl" : "colored")) !== "white-vinyl"
                         ? "bg-white text-[#15233F] shadow-xs"
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    6 Colored Labels
+                    Colored Squares
                   </button>
                   <button
                     type="button"
@@ -308,43 +307,9 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
                         : "text-slate-600 hover:text-slate-900"
                     }`}
                   >
-                    White Vinyl
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onChangePaperConfig({
-                        ...paperConfig,
-                        dieCutWhiteVinyl: true,
-                        layoutVariant: "side-by-side",
-                      })
-                    }
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors whitespace-nowrap cursor-pointer ${
-                      paperConfig.layoutVariant === "side-by-side"
-                        ? "bg-white text-[#15233F] shadow-xs"
-                        : "text-slate-600 hover:text-slate-900"
-                    }`}
-                  >
-                    Side-by-Side Replica
+                    White Vinyl Squares
                   </button>
                 </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2">
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(paperConfig.includeFestivalSticker)}
-                    onChange={(e) =>
-                      onChangePaperConfig({
-                        ...paperConfig,
-                        includeFestivalSticker: e.target.checked,
-                      })
-                    }
-                    className="w-4 h-4 accent-[#F28C38]"
-                  />
-                  <span>Add +1 Bonus Festival Sticker (7 Stickers on A4)</span>
-                </label>
               </div>
 
               {avatarMessage && (
@@ -354,7 +319,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
               )}
             </div>
 
-            {/* Caption Swap List (6 core + 1 Festival sticker) */}
+            {/* Caption Swap List (6 labels) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-800">
@@ -381,24 +346,16 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {(paperConfig.includeFestivalSticker
-                  ? [...STICKER_THEMES, FESTIVAL_STICKER_THEME]
-                  : STICKER_THEMES
-                ).map((theme, idx) => {
+                {STICKER_THEMES.map((theme, idx) => {
                   const isFocused = selectedSlot === idx;
-                  const isFestival = theme.id === "festival";
                   return (
                     <div
                       key={theme.id}
                       onFocus={() => setSelectedSlot(idx)}
                       className={`flex items-center gap-2.5 p-2 rounded-xl border transition-colors ${
-                        isFestival ? "sm:col-span-2" : ""
-                      } ${
                         isFocused
                           ? "border-[#15233F] bg-slate-50"
-                          : isFestival
-                            ? "border-amber-300 bg-amber-50/40"
-                            : "border-slate-200 bg-white"
+                          : "border-slate-200 bg-white"
                       }`}
                     >
                       <span
@@ -418,7 +375,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
                         </label>
                         <select
                           id={`caption-select-${idx}`}
-                          value={captions[idx] ?? DEFAULT_CAPTIONS[idx] ?? "Festive Vibes"}
+                          value={captions[idx] ?? DEFAULT_CAPTIONS[idx]}
                           onChange={(e) => onChangeCaption(idx, e.target.value)}
                           className="w-full text-sm font-semibold text-slate-900 bg-transparent focus:outline-none cursor-pointer truncate"
                         >

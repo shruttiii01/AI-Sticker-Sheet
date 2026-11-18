@@ -1,4 +1,4 @@
-export type StickerStyle = "Flat cartoon" | "Comic" | "Pixel art";
+export type StickerStyle = "Flat cartoon" | "Comic" | "Pixel art" | "3D anime" | "Retro style";
 
 export type AppTab = "stickers" | "booth" | "exact" | "paper" | "saved";
 
@@ -13,7 +13,7 @@ export interface StickerTheme {
   photoRingColor: string;
 }
 
-export type StickerLayoutVariant = "colored" | "white-vinyl" | "side-by-side";
+export type StickerLayoutVariant = "colored" | "white-vinyl";
 
 export interface PaperConfig {
   labelWidthMm: number;
@@ -29,7 +29,6 @@ export interface PaperConfig {
   testGridOnly: boolean;
   dieCutWhiteVinyl?: boolean;
   layoutVariant?: StickerLayoutVariant;
-  includeFestivalSticker?: boolean;
 }
 
 export interface SavedOutput {

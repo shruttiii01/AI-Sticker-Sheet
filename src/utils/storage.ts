@@ -1,7 +1,7 @@
 import { DEFAULT_PAPER_CONFIG, DEFAULT_STICKER_TAG } from "../constants";
 import type { PaperConfig, SavedOutput } from "../types";
 
-const PAPER_STORAGE_KEY = "dyp_aicoe_paper_config_v1";
+const PAPER_STORAGE_KEY = "dyp_aicoe_paper_config_v2";
 const TAG_STORAGE_KEY = "dyp_aicoe_sticker_tag_v2";
 const DB_NAME = "dyp_aicoe_sticker_booth";
 const DB_VERSION = 1;

@@ -238,10 +238,10 @@ export const CameraStep: React.FC<CameraStepProps> = ({
             <>
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
                 <p className="text-sm font-semibold text-slate-900">
-                  Ready for your {stickerCount} stickers
+                  Ready for your {stickerCount} {stickerCount === 1 ? "sticker" : "stickers"}
                 </p>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Your photo is centered and cropped cleanly so all {stickerCount} stickers print sharp on A4.
+                  Your photo is centered and cropped cleanly so {stickerCount === 1 ? "your sticker prints" : `all ${stickerCount} stickers print`} sharp on A4.
                 </p>
               </div>
 
@@ -250,7 +250,7 @@ export const CameraStep: React.FC<CameraStepProps> = ({
                 onClick={onContinue}
                 className="w-full min-h-[52px] px-5 py-3 rounded-xl bg-[#15233F] text-white font-display font-semibold text-base flex items-center justify-center gap-2 hover:bg-[#1d3157] transition-colors cursor-pointer"
               >
-                <span>Build {stickerCount} Stickers</span>
+                <span>Build {stickerCount} {stickerCount === 1 ? "Sticker" : "Stickers"}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 

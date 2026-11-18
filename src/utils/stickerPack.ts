@@ -114,11 +114,11 @@ function alphaBounds(canvas: HTMLCanvasElement) {
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
-/** Solid silhouette of `source`, grown by `radius` px and painted `color`. */
+/** Soft glowing white silhouette behind the cartoon character inside the square card. */
 function outline(source: HTMLCanvasElement, radius: number, color: string) {
   const { canvas, ctx } = makeCanvas(source.width);
-  const steps = 32;
-  for (const r of [radius, radius * 0.66, radius * 0.33]) {
+  const steps = 28;
+  for (const r of [radius, radius * 0.65, radius * 0.3]) {
     for (let i = 0; i < steps; i++) {
       const a = (i / steps) * Math.PI * 2;
       ctx.drawImage(source, Math.cos(a) * r, Math.sin(a) * r);
@@ -131,81 +131,278 @@ function outline(source: HTMLCanvasElement, radius: number, color: string) {
   return canvas;
 }
 
+function drawRoundedSquareRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawFourPointSparkle(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  fill: string
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.beginPath();
+  ctx.moveTo(0, -r);
+  ctx.lineTo(r * 0.28, -r * 0.28);
+  ctx.lineTo(r, 0);
+  ctx.lineTo(r * 0.28, r * 0.28);
+  ctx.lineTo(0, r);
+  ctx.lineTo(-r * 0.28, r * 0.28);
+  ctx.lineTo(-r, 0);
+  ctx.lineTo(-r * 0.28, -r * 0.28);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = "#15233F";
+  ctx.lineWidth = Math.max(3, r * 0.16);
+  ctx.lineJoin = "round";
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
 /**
- * Rasterise an SVG sticker at print resolution, optionally stamp a hashtag
- * (default "#DYPAICoE"), and wrap it in a thick white die-cut border with a
- * hairline cut guide – the classic vinyl sticker look.
+ * Rasterise an SVG cartoon character into a uniform 1:1 square cartoon sticker:
+ * - Identical square card formation, border, shadow, and layout on every sticker
+ * - Thick white vinyl square border + bold #15233F comic ink frame + offset shadow
+ * - Soft cartoon burst backdrop + comic halftone corner dots + corner sparkle stars
+ * - Centered cartoon character with crisp white sticker-pop halo
+ * - Bold playful cartoon hashtag lettering below the character
+ * - Consistent lower #DYPAICoE stamp badge
  */
 export async function svgToDieCutPng(
   svg: string,
-  artPx = 1024,
+  artPx = 1200,
   stickerTag = "#DYPAICoE",
+  captionHashtag = "",
 ): Promise<string> {
   const img = await loadImage(svgToDataUrl(svg));
-  const border = Math.round(artPx * 0.035);
-  const pad = border * 2;
-  const size = artPx + pad * 2;
+  const size = artPx;
   const tag = stickerTag.trim();
+  const rawHashtag = captionHashtag.trim();
+  const hashtag = rawHashtag
+    ? rawHashtag.startsWith("#")
+      ? rawHashtag
+      : `#${rawHashtag.replace(/\s+/g, "")}`
+    : "";
 
-  // Draw once, find the artwork's real bounds, then re-draw it centred and
-  // scaled to fill the sticker (Claude doesn't always centre the composition).
+  // Uniform 1:1 square outer sticker card geometry inside canvas
+  const outerMargin = Math.round(size * 0.032);
+  const shadowOff = Math.round(size * 0.016);
+  const cardX = outerMargin;
+  const cardY = outerMargin;
+  const cardSize = size - outerMargin * 2 - shadowOff;
+  const cardRadius = Math.round(cardSize * 0.085);
+
+  const innerInset = Math.round(cardSize * 0.045);
+  const innerX = cardX + innerInset;
+  const innerY = cardY + innerInset;
+  const innerSize = cardSize - innerInset * 2;
+  const innerRadius = Math.round(innerSize * 0.065);
+
+  const { canvas, ctx } = makeCanvas(size);
+
+  // 1. Soft ambient drop shadow + crisp hard comic offset shadow behind the square sticker
+  ctx.save();
+  ctx.shadowColor = "rgba(15, 23, 42, 0.2)";
+  ctx.shadowBlur = Math.round(size * 0.02);
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = Math.round(size * 0.01);
+  drawRoundedSquareRect(ctx, cardX + shadowOff, cardY + shadowOff, cardSize, cardSize, cardRadius);
+  ctx.fillStyle = "#15233F";
+  ctx.fill();
+  ctx.restore();
+
+  // 2. Thick white vinyl square sticker border + hairline cut guide + #15233F ink edge
+  ctx.save();
+  drawRoundedSquareRect(ctx, cardX, cardY, cardSize, cardSize, cardRadius);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fill();
+  ctx.strokeStyle = "#CBD5E1";
+  ctx.lineWidth = Math.max(2, Math.round(size * 0.0025));
+  ctx.stroke();
+
+  ctx.strokeStyle = "#15233F";
+  ctx.lineWidth = Math.max(5, Math.round(size * 0.009));
+  ctx.stroke();
+  ctx.restore();
+
+  // 3. Inner square cartoon comic panel (same format & layout for all stickers)
+  ctx.save();
+  drawRoundedSquareRect(ctx, innerX, innerY, innerSize, innerSize, innerRadius);
+  const bgGrad = ctx.createRadialGradient(
+    innerX + innerSize * 0.5,
+    innerY + innerSize * 0.42,
+    innerSize * 0.05,
+    innerX + innerSize * 0.5,
+    innerY + innerSize * 0.45,
+    innerSize * 0.72
+  );
+  bgGrad.addColorStop(0, "#FFFBEB");
+  bgGrad.addColorStop(0.55, "#EFF6FF");
+  bgGrad.addColorStop(1, "#DBEAFE");
+  ctx.fillStyle = bgGrad;
+  ctx.fill();
+
+  ctx.clip();
+
+  // Subtle cartoon sunburst rays behind the character
+  ctx.save();
+  ctx.translate(innerX + innerSize * 0.5, innerY + innerSize * 0.42);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+  const rayCount = 12;
+  for (let r = 0; r < rayCount; r++) {
+    const a0 = (r / rayCount) * Math.PI * 2;
+    const a1 = a0 + (Math.PI / rayCount) * 0.7;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a0) * innerSize, Math.sin(a0) * innerSize);
+    ctx.lineTo(Math.cos(a1) * innerSize, Math.sin(a1) * innerSize);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Subtle comic halftone corner dots (identical across every square sticker)
+  ctx.save();
+  ctx.fillStyle = "rgba(21, 35, 63, 0.14)";
+  const dotOffsets = [
+    [0.06, 0.06, 0.012],
+    [0.11, 0.06, 0.01],
+    [0.16, 0.06, 0.008],
+    [0.06, 0.11, 0.01],
+    [0.11, 0.11, 0.008],
+    [0.94, 0.06, 0.012],
+    [0.89, 0.06, 0.01],
+    [0.84, 0.06, 0.008],
+    [0.94, 0.11, 0.01],
+    [0.89, 0.11, 0.008],
+  ];
+  for (const [dx, dy, dr] of dotOffsets) {
+    ctx.beginPath();
+    ctx.arc(innerX + innerSize * dx, innerY + innerSize * dy, innerSize * dr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // 4. Measure actual non-transparent character artwork bounds and center cleanly
   const { canvas: raw, ctx: rawCtx } = makeCanvas(artPx);
   rawCtx.drawImage(img, 0, 0, artPx, artPx);
   const box = alphaBounds(raw) ?? { x: 0, y: 0, w: artPx, h: artPx };
 
-  const maxH = tag ? artPx * 0.85 : artPx;
-  const scale = Math.min(artPx / box.w, maxH / box.h);
+  const bottomBand = (hashtag ? 0.165 : 0.04) + (tag ? 0.11 : 0);
+  const charMaxW = innerSize * 0.84;
+  const charMaxH = innerSize * (0.91 - bottomBand);
+  const scale = Math.min(charMaxW / box.w, charMaxH / box.h);
   const dw = box.w * scale;
   const dh = box.h * scale;
 
-  const { canvas: art, ctx: artCtx } = makeCanvas(size);
-  artCtx.drawImage(
-    raw,
-    box.x,
-    box.y,
-    box.w,
-    box.h,
-    pad + (artPx - dw) / 2,
-    pad + (maxH - dh) / 2,
-    dw,
-    dh,
+  const { canvas: charLayer, ctx: charCtx } = makeCanvas(size);
+  const charX = innerX + (innerSize - dw) / 2;
+  const charY = innerY + innerSize * 0.035 + (charMaxH - dh) / 2;
+  charCtx.drawImage(raw, box.x, box.y, box.w, box.h, charX, charY, dw, dh);
+
+  // Subtle white sticker-pop aura behind the cartoon character so it reads like a layered cartoon cutout
+  const charHalo = outline(charLayer, Math.round(size * 0.016), "#FFFFFF");
+  ctx.drawImage(charHalo, 0, 0);
+  ctx.drawImage(charLayer, 0, 0);
+
+  // Symmetrical cartoon corner sparkle accents
+  drawFourPointSparkle(
+    ctx,
+    innerX + innerSize * 0.12,
+    innerY + innerSize * 0.15,
+    innerSize * 0.042,
+    "#FCD34D"
+  );
+  drawFourPointSparkle(
+    ctx,
+    innerX + innerSize * 0.88,
+    innerY + innerSize * 0.16,
+    innerSize * 0.036,
+    "#F472B6"
   );
 
-  if (tag) {
-    artCtx.save();
-    const fontPx = Math.round(artPx * 0.062);
-    artCtx.font = `800 ${fontPx}px "Plus Jakarta Sans", Arial, sans-serif`;
-    const measuredW = artCtx.measureText(tag).width;
-    const badgeW = Math.min(artPx * 0.82, measuredW + artPx * 0.08);
-    const badgeH = Math.round(artPx * 0.095);
-    const badgeX = pad + (artPx - badgeW) / 2;
-    const badgeY = pad + artPx * 0.885;
-    const r = badgeH / 2;
+  // 5. Bold playful cartoon hashtag lettering below the character
+  if (hashtag) {
+    ctx.save();
+    let fontPx = Math.round(innerSize * 0.095);
+    ctx.font = `900 ${fontPx}px "Plus Jakarta Sans", "Arial Rounded MT Bold", Arial, sans-serif`;
+    const measured = ctx.measureText(hashtag).width;
+    if (measured > innerSize * 0.88) {
+      fontPx = Math.max(24, Math.floor((fontPx * (innerSize * 0.88)) / measured));
+      ctx.font = `900 ${fontPx}px "Plus Jakarta Sans", "Arial Rounded MT Bold", Arial, sans-serif`;
+    }
+    const textX = innerX + innerSize / 2;
+    const textY = tag
+      ? innerY + innerSize * 0.785
+      : innerY + innerSize * 0.875;
 
-    artCtx.beginPath();
-    artCtx.moveTo(badgeX + r, badgeY);
-    artCtx.arcTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + badgeH, r);
-    artCtx.arcTo(badgeX + badgeW, badgeY + badgeH, badgeX, badgeY + badgeH, r);
-    artCtx.arcTo(badgeX, badgeY + badgeH, badgeX, badgeY, r);
-    artCtx.arcTo(badgeX, badgeY, badgeX + badgeW, badgeY, r);
-    artCtx.closePath();
-    artCtx.fillStyle = "#15233F";
-    artCtx.fill();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
 
-    artCtx.fillStyle = "#FFFFFF";
-    artCtx.textAlign = "center";
-    artCtx.textBaseline = "middle";
-    artCtx.fillText(tag, pad + artPx / 2, badgeY + badgeH / 2 + fontPx * 0.04, badgeW - artPx * 0.04);
-    artCtx.restore();
+    // White sticker rim + bold navy comic outline + bright orange cartoon fill
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = Math.max(12, Math.round(fontPx * 0.34));
+    ctx.strokeText(hashtag, textX, textY);
+
+    ctx.strokeStyle = "#15233F";
+    ctx.lineWidth = Math.max(7, Math.round(fontPx * 0.2));
+    ctx.strokeText(hashtag, textX, textY);
+
+    ctx.fillStyle = "#F28C38";
+    ctx.fillText(hashtag, textX, textY);
+    ctx.restore();
   }
 
-  const white = outline(art, border, "#ffffff");
-  const cut = outline(art, border + 3, "#c7ccd4");
+  // 6. Consistent lower campus / booth stamp badge
+  if (tag) {
+    ctx.save();
+    const fontPx = Math.round(innerSize * 0.05);
+    ctx.font = `800 ${fontPx}px "Plus Jakarta Sans", Arial, sans-serif`;
+    const measuredW = ctx.measureText(tag).width;
+    const badgeW = Math.min(innerSize * 0.72, measuredW + innerSize * 0.09);
+    const badgeH = Math.round(innerSize * 0.082);
+    const badgeX = innerX + (innerSize - badgeW) / 2;
+    const badgeY = innerY + innerSize - badgeH - Math.round(innerSize * 0.032);
 
-  const { canvas, ctx } = makeCanvas(size);
-  ctx.drawImage(cut, 0, 0);
-  ctx.drawImage(white, 0, 0);
-  ctx.drawImage(art, 0, 0);
+    drawRoundedSquareRect(ctx, badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+    ctx.fillStyle = "#15233F";
+    ctx.fill();
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(tag, innerX + innerSize / 2, badgeY + badgeH / 2 + fontPx * 0.04, badgeW - innerSize * 0.04);
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  // 7. Crisp inner comic frame outline
+  ctx.save();
+  drawRoundedSquareRect(ctx, innerX, innerY, innerSize, innerSize, innerRadius);
+  ctx.strokeStyle = "#15233F";
+  ctx.lineWidth = Math.max(4, Math.round(size * 0.0055));
+  ctx.stroke();
+  ctx.restore();
+
   return canvas.toDataURL("image/png");
 }
 

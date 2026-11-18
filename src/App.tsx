@@ -72,7 +72,7 @@ export default function App() {
   const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
   const [styledPhoto, setStyledPhoto] = useState<string | null>(null);
   const [avatarPhoto, setAvatarPhoto] = useState<string | null>(null);
-  const [photoMode, setPhotoMode] = useState<PhotoMode>("original");
+  const [photoMode, setPhotoMode] = useState<PhotoMode>("styled");
   const [captions, setCaptions] = useState<string[]>([...DEFAULT_CAPTIONS]);
   const [sessionStartMs, setSessionStartMs] = useState<number>(() => Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -147,7 +147,7 @@ export default function App() {
     setCapturedPhoto(null);
     setStyledPhoto(null);
     setAvatarPhoto(null);
-    setPhotoMode("original");
+    setPhotoMode("styled");
     setCaptions([...DEFAULT_CAPTIONS]);
     setSessionStartMs(Date.now());
     setElapsedSeconds(0);
@@ -432,7 +432,7 @@ export default function App() {
                   onCapturePhoto={(dataUrl) => {
                     setCapturedPhoto(dataUrl || null);
                     setAvatarPhoto(null);
-                    setPhotoMode("original");
+                    setPhotoMode("styled");
                   }}
                   onBack={() => setBoothStep("checkin")}
                   onContinue={() => setBoothStep("studio")}

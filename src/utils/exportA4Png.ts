@@ -1,16 +1,8 @@
-import {
-  A4_HEIGHT_MM,
-  A4_WIDTH_MM,
-  FESTIVAL_STICKER_THEME,
-  STICKER_THEMES,
-} from "../constants";
+import { A4_HEIGHT_MM, A4_WIDTH_MM, STICKER_THEMES } from "../constants";
 import type { PaperConfig } from "../types";
-import { computeA4Slots } from "./sheetLayout";
 
 const DPI = 200;
 const MM_TO_PX = DPI / 25.4;
-
-const SLOT_TILTS_RAD = [-0.028, 0.024, -0.021, 0.026, -0.024, 0.021];
 
 const BRUSH_HIGHLIGHTS = [
   "rgba(242, 140, 56, 0.36)",
@@ -43,26 +35,36 @@ function drawRoundedRect(
   ctx.closePath();
 }
 
-function drawArchFrame(
+function drawComicCornerDots(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
-  h: number
+  h: number,
+  color: string
 ) {
-  const topR = Math.min(w * 0.42, h * 0.42);
-  const botR = Math.min(w * 0.16, h * 0.16);
-  ctx.beginPath();
-  ctx.moveTo(x + topR, y);
-  ctx.lineTo(x + w - topR, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + topR);
-  ctx.lineTo(x + w, y + h - botR);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - botR, y + h);
-  ctx.lineTo(x + botR, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - botR);
-  ctx.lineTo(x, y + topR);
-  ctx.quadraticCurveTo(x, y, x + topR, y);
-  ctx.closePath();
+  ctx.save();
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = color;
+  const pts = [
+    [0.08, 0.08, 0.014],
+    [0.15, 0.08, 0.012],
+    [0.22, 0.08, 0.009],
+    [0.08, 0.15, 0.012],
+    [0.15, 0.15, 0.009],
+    [0.92, 0.08, 0.014],
+    [0.85, 0.08, 0.012],
+    [0.78, 0.08, 0.009],
+    [0.92, 0.15, 0.012],
+    [0.85, 0.15, 0.009],
+  ];
+  const base = Math.min(w, h);
+  for (const [px, py, pr] of pts) {
+    ctx.beginPath();
+    ctx.arc(x + w * px, y + h * py, base * pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -72,35 +74,6 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error("Failed to load image for A4 export."));
     img.src = src;
   });
-}
-
-function drawCrown(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  size: number,
-  fill: string,
-  angleRad: number
-) {
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(angleRad);
-  ctx.beginPath();
-  ctx.moveTo(-size * 0.48, size * 0.32);
-  ctx.lineTo(-size * 0.54, -size * 0.26);
-  ctx.lineTo(-size * 0.2, size * 0.04);
-  ctx.lineTo(0, -size * 0.42);
-  ctx.lineTo(size * 0.2, size * 0.04);
-  ctx.lineTo(size * 0.54, -size * 0.26);
-  ctx.lineTo(size * 0.48, size * 0.32);
-  ctx.closePath();
-  ctx.fillStyle = fill;
-  ctx.strokeStyle = "#15233F";
-  ctx.lineWidth = Math.max(2, size * 0.1);
-  ctx.lineJoin = "round";
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
 }
 
 function drawSparkle(
@@ -124,7 +97,8 @@ function drawSparkle(
   ctx.closePath();
   ctx.fillStyle = fill;
   ctx.strokeStyle = "#15233F";
-  ctx.lineWidth = Math.max(1.5, r * 0.16);
+  ctx.lineWidth = Math.max(1.5, r * 0.18);
+  ctx.lineJoin = "round";
   ctx.fill();
   ctx.stroke();
   ctx.restore();
@@ -147,14 +121,17 @@ function drawHeart(
   ctx.fillStyle = fill;
   ctx.strokeStyle = "#15233F";
   ctx.lineWidth = Math.max(1.5, r * 0.18);
+  ctx.lineJoin = "round";
   ctx.fill();
   ctx.stroke();
   ctx.restore();
 }
 
+/**
+ * Unified cartoon sticker accents drawn identically on every square portrait frame.
+ */
 function drawCanvasDoodles(
   ctx: CanvasRenderingContext2D,
-  slotIndex: number,
   fx: number,
   fy: number,
   fw: number,
@@ -162,196 +139,41 @@ function drawCanvasDoodles(
 ) {
   const s = Math.min(fw, fh);
 
-  if (slotIndex === 6) {
-    // Festive marigold garland dots across top arch
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(fx + fw * 0.08, fy + fh * 0.1);
-    ctx.quadraticCurveTo(fx + fw * 0.5, fy + fh * 0.22, fx + fw * 0.92, fy + fh * 0.1);
-    ctx.strokeStyle = "#D97706";
-    ctx.lineWidth = Math.max(1.8, s * 0.018);
-    ctx.stroke();
-    const beads = [
-      { x: 0.18, y: 0.13, c: "#F97316" },
-      { x: 0.34, y: 0.155, c: "#FACC15" },
-      { x: 0.5, y: 0.165, c: "#EC4899" },
-      { x: 0.66, y: 0.155, c: "#FACC15" },
-      { x: 0.82, y: 0.13, c: "#F97316" },
-    ];
-    for (const b of beads) {
-      ctx.beginPath();
-      ctx.arc(fx + fw * b.x, fy + fh * b.y, s * 0.042, 0, Math.PI * 2);
-      ctx.fillStyle = b.c;
-      ctx.fill();
-      ctx.strokeStyle = "#15233F";
-      ctx.lineWidth = Math.max(1.2, s * 0.012);
-      ctx.stroke();
-    }
-    ctx.restore();
+  // Top-left cartoon motion pop ticks
+  ctx.save();
+  ctx.strokeStyle = "#15233F";
+  ctx.lineWidth = Math.max(2, s * 0.022);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(fx - s * 0.02, fy + s * 0.08);
+  ctx.lineTo(fx + s * 0.05, fy + s * 0.12);
+  ctx.moveTo(fx + s * 0.04, fy);
+  ctx.lineTo(fx + s * 0.08, fy + s * 0.07);
+  ctx.moveTo(fx - s * 0.04, fy + s * 0.16);
+  ctx.lineTo(fx + s * 0.03, fy + s * 0.17);
+  ctx.stroke();
+  ctx.restore();
 
-    // Glowing diya badge bottom-right
-    ctx.save();
-    ctx.translate(fx + fw * 0.82, fy + fh * 0.82);
-    drawRoundedRect(ctx, -s * 0.13, -s * 0.13, s * 0.26, s * 0.26, s * 0.07);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(0, -s * 0.095);
-    ctx.bezierCurveTo(-s * 0.04, -s * 0.02, -s * 0.035, s * 0.01, 0, s * 0.01);
-    ctx.bezierCurveTo(s * 0.035, s * 0.01, s * 0.04, -s * 0.02, 0, -s * 0.095);
-    ctx.fillStyle = "#FDE047";
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(-s * 0.09, s * 0.02);
-    ctx.quadraticCurveTo(0, s * 0.13, s * 0.09, s * 0.02);
-    ctx.quadraticCurveTo(0, s * 0.05, -s * 0.09, s * 0.02);
-    ctx.fillStyle = "#D97706";
-    ctx.fill();
-    ctx.strokeStyle = "#15233F";
-    ctx.lineWidth = Math.max(1.4, s * 0.014);
-    ctx.stroke();
-    ctx.restore();
+  // Top-right gold sparkle + mini white star
+  drawSparkle(ctx, fx + fw * 0.91, fy + fh * 0.105, s * 0.075, "#FCD34D");
+  drawSparkle(ctx, fx + fw * 0.97, fy + fh * 0.25, s * 0.042, "#FFFFFF");
 
-    drawSparkle(ctx, fx + fw * 0.11, fy + fh * 0.81, s * 0.075, "#FACC15");
-    return;
-  }
+  // Bottom-left gold sparkle
+  drawSparkle(ctx, fx + fw * 0.07, fy + fh * 0.87, s * 0.062, "#FCD34D");
 
-  const variant = slotIndex % 6;
-
-  if (variant === 0) {
-    drawCrown(ctx, fx + fw * 0.38, fy - fh * 0.02, s * 0.25, "#FCD34D", -0.14);
-    drawSparkle(ctx, fx + fw * 0.88, fy + fh * 0.16, s * 0.08, "#FCD34D");
-    drawHeart(ctx, fx + fw * 0.1, fy + fh * 0.85, s * 0.08, "#EC4899");
-  } else if (variant === 1) {
-    // Cool shades badge bottom-right
-    ctx.save();
-    ctx.translate(fx + fw * 0.78, fy + fh * 0.82);
-    ctx.rotate(-0.1);
-    drawRoundedRect(ctx, -s * 0.16, -s * 0.07, s * 0.32, s * 0.14, s * 0.05);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fill();
-    ctx.fillStyle = "#0F172A";
-    drawRoundedRect(ctx, -s * 0.13, -s * 0.045, s * 0.11, s * 0.09, s * 0.025);
-    ctx.fill();
-    drawRoundedRect(ctx, s * 0.02, -s * 0.045, s * 0.11, s * 0.09, s * 0.025);
-    ctx.fill();
-    ctx.restore();
-    drawHeart(ctx, fx + fw * 0.88, fy + fh * 0.14, s * 0.08, "#EC4899");
-  } else if (variant === 2) {
-    // Iced coffee cup top-left
-    ctx.save();
-    ctx.translate(fx + fw * 0.12, fy + fh * 0.14);
-    ctx.rotate(-0.16);
-    drawRoundedRect(ctx, -s * 0.09, -s * 0.11, s * 0.18, s * 0.23, s * 0.05);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fill();
-    ctx.fillStyle = "#FDE68A";
-    ctx.strokeStyle = "#15233F";
-    ctx.lineWidth = Math.max(1.8, s * 0.015);
-    ctx.fillRect(-s * 0.055, -s * 0.03, s * 0.11, s * 0.12);
-    ctx.strokeRect(-s * 0.055, -s * 0.03, s * 0.11, s * 0.12);
-    ctx.restore();
-    // Pizza slice bottom-right
-    ctx.save();
-    ctx.translate(fx + fw * 0.84, fy + fh * 0.82);
-    ctx.rotate(0.2);
-    ctx.beginPath();
-    ctx.moveTo(0, -s * 0.11);
-    ctx.lineTo(s * 0.1, s * 0.08);
-    ctx.lineTo(-s * 0.1, s * 0.08);
-    ctx.closePath();
-    ctx.fillStyle = "#FCD34D";
-    ctx.strokeStyle = "#15233F";
-    ctx.lineWidth = Math.max(1.8, s * 0.015);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-    drawSparkle(ctx, fx + fw * 0.88, fy + fh * 0.18, s * 0.075, "#FCD34D");
-  } else if (variant === 3) {
-    // Cloud Dream Big badge top-right
-    ctx.save();
-    ctx.translate(fx + fw * 0.78, fy + fh * 0.1);
-    drawRoundedRect(ctx, -s * 0.18, -s * 0.1, s * 0.36, s * 0.2, s * 0.08);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fill();
-    ctx.strokeStyle = "#15233F";
-    ctx.lineWidth = Math.max(1.8, s * 0.016);
-    ctx.stroke();
-    ctx.fillStyle = "#15233F";
-    ctx.font = `800 ${Math.round(s * 0.075)}px "Plus Jakarta Sans", sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("Dream Big!", 0, 0);
-    ctx.restore();
-    drawHeart(ctx, fx + fw * 0.1, fy + fh * 0.18, s * 0.08, "#F472B6");
-  } else if (variant === 4) {
-    // Mini checklist badge top-left
-    ctx.save();
-    ctx.translate(fx + fw * 0.14, fy + fh * 0.16);
-    ctx.rotate(-0.1);
-    drawRoundedRect(ctx, -s * 0.13, -s * 0.13, s * 0.26, s * 0.26, s * 0.04);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fill();
-    ctx.strokeStyle = "#15233F";
-    ctx.lineWidth = Math.max(1.8, s * 0.014);
-    ctx.stroke();
-    ctx.fillStyle = "#15233F";
-    ctx.font = `800 ${Math.round(s * 0.055)}px "Plus Jakarta Sans", sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillText("Chai", 0, -s * 0.05);
-    ctx.fillText("Code", 0, s * 0.015);
-    ctx.fillStyle = "#EC4899";
-    ctx.fillText("Win!", 0, s * 0.08);
-    ctx.restore();
-
-    // Smiley bottom-right
-    ctx.save();
-    ctx.translate(fx + fw * 0.85, fy + fh * 0.83);
-    ctx.beginPath();
-    ctx.arc(0, 0, s * 0.08, 0, Math.PI * 2);
-    ctx.fillStyle = "#FCD34D";
-    ctx.fill();
-    ctx.strokeStyle = "#15233F";
-    ctx.lineWidth = Math.max(1.8, s * 0.015);
-    ctx.stroke();
-    ctx.restore();
-  } else {
-    // Pink ribbon bow top-right
-    ctx.save();
-    ctx.translate(fx + fw * 0.84, fy + fh * 0.12);
-    ctx.rotate(0.18);
-    ctx.fillStyle = "#F472B6";
-    ctx.strokeStyle = "#15233F";
-    ctx.lineWidth = Math.max(1.8, s * 0.014);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-s * 0.1, -s * 0.055);
-    ctx.lineTo(-s * 0.08, s * 0.055);
-    ctx.closePath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(s * 0.1, -s * 0.055);
-    ctx.lineTo(s * 0.08, s * 0.055);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    // Book stack badge bottom-left
-    ctx.save();
-    ctx.translate(fx + fw * 0.16, fy + fh * 0.84);
-    ctx.rotate(-0.08);
-    drawRoundedRect(ctx, -s * 0.14, -s * 0.1, s * 0.28, s * 0.2, s * 0.04);
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fill();
-    ctx.fillStyle = "#A78BFA";
-    ctx.fillRect(-s * 0.11, -s * 0.08, s * 0.22, s * 0.045);
-    ctx.fillStyle = "#F472B6";
-    ctx.fillRect(-s * 0.1, -s * 0.03, s * 0.2, s * 0.045);
-    ctx.fillStyle = "#FCD34D";
-    ctx.fillRect(-s * 0.12, s * 0.02, s * 0.24, s * 0.05);
-    ctx.restore();
-    drawSparkle(ctx, fx + fw * 0.12, fy + fh * 0.14, s * 0.08, "#FCD34D");
-  }
+  // Bottom-right white cartoon heart badge
+  ctx.save();
+  const bx = fx + fw * 0.9;
+  const by = fy + fh * 0.88;
+  ctx.beginPath();
+  ctx.arc(bx, by, s * 0.085, 0, Math.PI * 2);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fill();
+  ctx.strokeStyle = "#15233F";
+  ctx.lineWidth = Math.max(1.8, s * 0.015);
+  ctx.stroke();
+  ctx.restore();
+  drawHeart(ctx, fx + fw * 0.9, fy + fh * 0.895, s * 0.052, "#EC4899");
 }
 
 export async function renderA4SheetToPng(params: {
@@ -380,26 +202,26 @@ export async function renderA4SheetToPng(params: {
     loadedImg = await loadImage(photoSrc);
   }
 
-  const slots = computeA4Slots(paperConfig);
+  const totalSlots = Math.min(6, paperConfig.columns * paperConfig.rows);
   const layoutVariant =
     paperConfig.layoutVariant ??
     (paperConfig.dieCutWhiteVinyl ? "white-vinyl" : "colored");
   const isWhiteVinyl = layoutVariant === "white-vinyl";
-  const isSideBySide = layoutVariant === "side-by-side";
 
-  for (const slot of slots) {
-    const i = slot.index;
-    const isFestival = slot.isFestival;
-    const x = mm(slot.leftMm);
-    const y = mm(slot.topMm);
-    const w = mm(slot.widthMm);
-    const h = mm(slot.heightMm);
+  for (let i = 0; i < totalSlots; i++) {
+    const col = i % paperConfig.columns;
+    const row = Math.floor(i / paperConfig.columns);
+    const x = mm(
+      paperConfig.leftMarginMm + col * (paperConfig.labelWidthMm + paperConfig.gapXMm)
+    );
+    const y = mm(
+      paperConfig.topMarginMm + row * (paperConfig.labelHeightMm + paperConfig.gapYMm)
+    );
+    const w = mm(paperConfig.labelWidthMm);
+    const h = mm(paperConfig.labelHeightMm);
     const r = mm(paperConfig.cornerRadiusMm);
-    const isWideHorizontal = isSideBySide || (isFestival && slot.widthMm > slot.heightMm * 1.35);
 
-    const theme = isFestival
-      ? FESTIVAL_STICKER_THEME
-      : STICKER_THEMES[i % STICKER_THEMES.length];
+    const theme = STICKER_THEMES[i % STICKER_THEMES.length];
 
     if (paperConfig.testGridOnly) {
       ctx.save();
@@ -426,7 +248,7 @@ export async function renderA4SheetToPng(params: {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(
-        `Slot ${i + 1} (${slot.widthMm}x${slot.heightMm}mm)`,
+        `Slot ${i + 1} (${paperConfig.labelWidthMm}x${paperConfig.labelHeightMm}mm)`,
         cx,
         cy + mm(6)
       );
@@ -434,198 +256,81 @@ export async function renderA4SheetToPng(params: {
       continue;
     }
 
-    // Sticker background
+    // Outer square sticker comic offset shadow + background + ink border
+    const cardShadow = mm(0.85);
+    ctx.save();
+    drawRoundedRect(ctx, x + cardShadow, y + cardShadow, w, h, r);
+    ctx.fillStyle = "#15233F";
+    ctx.fill();
+    ctx.restore();
+
     ctx.save();
     drawRoundedRect(ctx, x, y, w, h, r);
-    ctx.fillStyle = isWhiteVinyl || isSideBySide ? "#FFFFFF" : theme.bgColor;
+    ctx.fillStyle = isWhiteVinyl ? "#FFFFFF" : theme.bgColor;
     ctx.fill();
 
-    if (isWhiteVinyl || isSideBySide) {
-      ctx.strokeStyle = "#CBD5E1";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 6]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    } else if (isFestival) {
-      ctx.strokeStyle = theme.borderColor;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    } else if (paperConfig.showCutGuides) {
+    if (paperConfig.showCutGuides) {
       ctx.strokeStyle = "#94A3B8";
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.8;
       ctx.setLineDash([8, 6]);
       ctx.stroke();
       ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = "#15233F";
+      ctx.lineWidth = Math.max(2.5, mm(0.5));
+      ctx.stroke();
     }
     ctx.restore();
 
-    if (isWideHorizontal) {
-      const pad = mm(3.5);
-      const photoW = (isFestival ? w * 0.36 : w * 0.48) - pad;
-      const photoH = h - pad * 2;
-      const photoX = x + pad;
-      const photoY = y + pad;
-      const border = mm(1);
-
-      ctx.save();
-      drawArchFrame(ctx, photoX, photoY, photoW, photoH);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fill();
-      ctx.strokeStyle = "#E2E8F0";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.save();
-      drawArchFrame(
-        ctx,
-        photoX + border,
-        photoY + border,
-        photoW - border * 2,
-        photoH - border * 2
-      );
-      ctx.clip();
-      if (loadedImg) {
-        const pw = photoW - border * 2;
-        const ph = photoH - border * 2;
-        const imgAspect = loadedImg.naturalWidth / loadedImg.naturalHeight;
-        const boxAspect = pw / ph;
-        let dw = pw;
-        let dh = ph;
-        let dx = photoX + border;
-        let dy = photoY + border;
-        if (imgAspect > boxAspect) {
-          dw = ph * imgAspect;
-          dx -= (dw - pw) / 2;
-        } else {
-          dh = pw / imgAspect;
-          dy -= (dh - ph) * 0.25;
-        }
-        ctx.drawImage(loadedImg, dx, dy, dw, dh);
-      }
-      ctx.restore();
-
-      if (isFestival) {
-        drawCanvasDoodles(ctx, 6, photoX, photoY, photoW, photoH);
-      } else {
-        // 3 black motion lines top-left
-        ctx.save();
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = Math.max(2, mm(0.7));
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(photoX, photoY + mm(2));
-        ctx.lineTo(photoX + mm(4), photoY + mm(5));
-        ctx.moveTo(photoX - mm(1.5), photoY + mm(6.5));
-        ctx.lineTo(photoX + mm(3), photoY + mm(7.5));
-        ctx.moveTo(photoX, photoY + mm(11));
-        ctx.lineTo(photoX + mm(4), photoY + mm(9.5));
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Right side stacked caption
-      const caption = (captions[i] ?? (isFestival ? "Festive Vibes" : "")).trim();
-      const words = caption.split(/\s+/);
-      const lead = words.length > 1 ? words.slice(0, -1).join(" ") : caption;
-      const accent = words.length > 1 ? words[words.length - 1] : "";
-      const textCx = isFestival ? x + w * 0.68 : x + w * 0.74;
-      const textCy = y + h * 0.44;
-      const fSize = isFestival ? Math.min(mm(8), h * 0.17) : Math.min(mm(6.5), h * 0.14);
-      const textMaxW = isFestival ? w * 0.56 : w * 0.44;
-
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      if (isFestival) {
-        ctx.font = `800 ${Math.round(mm(2.6))}px "Plus Jakarta Sans", sans-serif`;
-        ctx.fillStyle = "#B45309";
-        ctx.fillText("FESTIVAL EDITION · SPECIAL STICKER", textCx, y + h * 0.18, textMaxW);
-      }
-      ctx.font = `800 ${Math.round(fSize)}px "Plus Jakarta Sans", sans-serif`;
-      ctx.fillStyle = "#0F172A";
-      ctx.fillText(lead, textCx, textCy - fSize * 0.55, textMaxW);
-      if (accent) {
-        ctx.fillStyle = isFestival ? "#EA580C" : "#DF1B6B";
-        ctx.fillText(accent, textCx, textCy + fSize * 0.55, textMaxW);
-      }
-      // Zig-zag underline + festive sparkle or heart
-      const zigStart = isFestival ? x + w * 0.55 : x + w * 0.56;
-      const zigEnd = isFestival ? x + w * 0.74 : x + w * 0.72;
-      ctx.beginPath();
-      ctx.moveTo(zigStart, y + h * 0.7);
-      ctx.lineTo(zigEnd, y + h * 0.68);
-      ctx.lineTo(zigStart + (zigEnd - zigStart) * 0.25, y + h * 0.73);
-      ctx.lineTo(zigEnd - (zigEnd - zigStart) * 0.1, y + h * 0.74);
-      ctx.strokeStyle = isFestival ? "#F59E0B" : "#EC4899";
-      ctx.lineWidth = Math.max(2, mm(0.9));
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.stroke();
-
-      if (isFestival) {
-        drawSparkle(ctx, x + w * 0.81, y + h * 0.71, mm(3.4), "#FACC15");
-      } else {
-        drawHeart(ctx, x + w * 0.84, y + h * 0.73, mm(3.0), "#F472B6");
-      }
-
-      if (trimmedTag) {
-        const tagFont = Math.round(mm(2.6));
-        ctx.font = `800 ${tagFont}px "Plus Jakarta Sans", sans-serif`;
-        const tagW = Math.min(textMaxW, ctx.measureText(trimmedTag).width + mm(3.2));
-        const tagH = mm(4.0);
-        const tagY = y + h - mm(4.5);
-        drawRoundedRect(ctx, textCx - tagW / 2, tagY - tagH / 2, tagW, tagH, tagH / 2);
-        ctx.fillStyle = "#15233F";
-        ctx.fill();
-        ctx.fillStyle = "#FFFFFF";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(trimmedTag, textCx, tagY + tagFont * 0.04, tagW - mm(1.5));
-      }
-      ctx.restore();
-      continue;
-    }
-
-    // Inner organic arch die-cut sticker frame geometry
-    const pad = mm(
-      Math.min(slot.widthMm, slot.heightMm) * 0.08
+    drawComicCornerDots(
+      ctx,
+      x,
+      y,
+      w,
+      h,
+      !isWhiteVinyl && theme.id === "navy" ? "#FFFFFF" : "#15233F"
     );
-    const captionBandHeight = Math.max(mm(13), h * 0.26);
-    const frameX = x + pad;
-    const frameY = y + pad;
-    const frameW = w - pad * 2;
-    const frameH = h - pad * 1.4 - captionBandHeight;
-    const whiteBorder = mm(1.25);
-    const tilt = SLOT_TILTS_RAD[i % SLOT_TILTS_RAD.length];
+
+    // Uniform upright 1:1 square cartoon sticker frame geometry
+    const pad = mm(
+      Math.min(paperConfig.labelWidthMm, paperConfig.labelHeightMm) * 0.068
+    );
+    const captionBandHeight = Math.max(mm(13), h * 0.27);
+    const availW = w - pad * 2;
+    const availH = h - pad * 1.3 - captionBandHeight;
+    const frameSide = Math.max(mm(16), Math.min(availW, availH));
+    const frameX = x + (w - frameSide) / 2;
+    const frameY = y + pad + (availH - frameSide) / 2;
+    const whiteBorder = mm(1.1);
+    const sqRadius = frameSide * 0.08;
+    const shadowOff = mm(0.85);
+
+    // Chunky cartoon offset shadow + white square vinyl mat + ink border (upright, zero tilt)
+    ctx.save();
+    drawRoundedRect(ctx, frameX + shadowOff, frameY + shadowOff, frameSide, frameSide, sqRadius);
+    ctx.fillStyle = "#15233F";
+    ctx.fill();
+    ctx.restore();
 
     ctx.save();
-    ctx.translate(frameX + frameW / 2, frameY + frameH / 2);
-    ctx.rotate(tilt);
-
-    const lx = -frameW / 2;
-    const ly = -frameH / 2;
-
-    // White die-cut sticker border + subtle shadow
-    ctx.save();
-    ctx.shadowColor = "rgba(15, 23, 42, 0.16)";
-    ctx.shadowBlur = mm(1.8);
-    ctx.shadowOffsetY = mm(0.7);
-    drawArchFrame(ctx, lx, ly, frameW, frameH);
+    drawRoundedRect(ctx, frameX, frameY, frameSide, frameSide, sqRadius);
     ctx.fillStyle = "#FFFFFF";
     ctx.fill();
+    ctx.strokeStyle = "#15233F";
+    ctx.lineWidth = Math.max(2.2, mm(0.48));
+    ctx.stroke();
     ctx.restore();
 
-    // Clipped photo inside white arch border
-    const px = lx + whiteBorder;
-    const py = ly + whiteBorder;
-    const pw = frameW - whiteBorder * 2;
-    const ph = frameH - whiteBorder * 2;
+    // Clipped photo inside square cartoon border
+    const px = frameX + whiteBorder;
+    const py = frameY + whiteBorder;
+    const pw = frameSide - whiteBorder * 2;
+    const ph = frameSide - whiteBorder * 2;
 
     ctx.save();
-    drawArchFrame(ctx, px, py, pw, ph);
+    drawRoundedRect(ctx, px, py, pw, ph, frameSide * 0.06);
     ctx.clip();
-    ctx.fillStyle = "#F8FAFC";
+    ctx.fillStyle = "#EFF6FF";
     ctx.fillRect(px, py, pw, ph);
 
     if (loadedImg) {
@@ -647,13 +352,13 @@ export async function renderA4SheetToPng(params: {
     }
     ctx.restore();
 
-    // Hand-drawn doodle overlays on the tilted die-cut frame
-    drawCanvasDoodles(ctx, i, lx, ly, frameW, frameH);
-    ctx.restore();
+    // Identical cartoon doodle accents on every square portrait frame
+    drawCanvasDoodles(ctx, frameX, frameY, frameSide, frameSide);
 
     // Pastel highlighter brush swipe behind caption
     const caption = (captions[i] ?? "").trim();
-    const captionCenterY = frameY + frameH + (y + h - (frameY + frameH)) * 0.4;
+    const bandTop = y + pad + availH;
+    const captionCenterY = bandTop + (y + h - bandTop) * 0.4;
     const brushColor = isWhiteVinyl
       ? "rgba(244, 114, 182, 0.22)"
       : BRUSH_HIGHLIGHTS[i % BRUSH_HIGHLIGHTS.length];
@@ -668,9 +373,14 @@ export async function renderA4SheetToPng(params: {
           : "#EC4899";
 
     ctx.save();
-    ctx.translate(x + w / 2, captionCenterY + mm(0.6));
-    ctx.rotate(-0.017);
-    drawRoundedRect(ctx, -w * 0.36, -mm(1.5), w * 0.72, mm(3.0), mm(1.5));
+    drawRoundedRect(
+      ctx,
+      x + w * 0.14,
+      captionCenterY - mm(0.9),
+      w * 0.72,
+      mm(3.0),
+      mm(1.5)
+    );
     ctx.fillStyle = brushColor;
     ctx.fill();
     ctx.restore();

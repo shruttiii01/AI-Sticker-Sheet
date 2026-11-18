@@ -18,7 +18,10 @@ const DRAW_EFFORT = (process.env.STICKER_EFFORT || "medium") as
   | "high";
 
 export const STICKER_STYLES = [
+  "Cute caricature",
   "Chibi cartoon",
+  "3D anime",
+  "Retro style",
   "Flat vector",
   "Kawaii pastel",
   "Retro badge",
@@ -27,16 +30,22 @@ export const STICKER_STYLES = [
 export type StickerStyle = (typeof STICKER_STYLES)[number];
 
 const STYLE_GUIDE: Record<StickerStyle, string> = {
+  "Cute caricature":
+    "Expressive cute cartoon character / caricature with oversized cartoon head (~40% of figure height), big glossy cartoon eyes with white catchlights, arched eyebrows, rosy cheek blush, bold clean #15233F dark ink outlines (stroke-width 5–8), bright vibrant colours, and 3-tone cel shading. Keep the person's exact hairstyle, skin tone, glasses/facial hair, clothes, and accessories clearly recognizable in a cheerful half-body or full-body pose.",
   "Chibi cartoon":
-    "Chibi proportions (head ~45% of body height), big friendly eyes, rounded shapes, thick dark outline, flat fills with one soft shade tone.",
+    "Chibi cartoon character proportions (head ~48% of figure height), huge sparkling anime/cartoon eyes with double white catchlights, rounded bouncy shapes, thick #15233F ink outlines (stroke-width 6–8), bright vibrant colours with 3-tone cel shading and blush marks.",
+  "3D anime":
+    "3D stylised anime character look (rendered cleanly in vector SVG using smooth radialGradient & linearGradient volumetric shading, glossy specular highlights on hair, cheeks, and nose, large expressive luminous anime eyes with multi-layered catchlights, soft rim lighting, and crisp #15233F cartoon contour outlines stroke-width 4–6).",
+  "Retro style":
+    "Classic vintage 70s/80s retro cartoon character illustration with warm nostalgic palette (mustard gold, burnt orange, teal, cream, cocoa brown), expressive groovy cartoon eyes & big smile, bold #15233F ink outlines (stroke-width 6–8), and warm halftone-inspired cel shading.",
   "Flat vector":
-    "Modern flat vector illustration, geometric simplification, no outlines on inner shapes but a bold outer outline, limited 6–8 colour palette, subtle long shadow.",
+    "Modern 2D animated cartoon character illustration, crisp stylized cartoon proportions, big expressive eyes with white highlights, thick #15233F outer ink outline (stroke-width 5–7), vibrant 6–8 colour palette, clean cel shadow blocks.",
   "Kawaii pastel":
-    "Kawaii style, pastel palette, blush marks on cheeks, sparkles and tiny hearts around the character, soft rounded line work.",
+    "Kawaii cartoon character style, cute oversized head, glossy dark eyes with sparkle highlights, rosy cheek blush ovals, vibrant pastel palette, tiny floating hearts/sparkles, thick rounded #15233F ink outlines (stroke-width 5–7).",
   "Retro badge":
-    "Vintage 70s badge: character bust inside a circular or shield-shaped badge with a ribbon banner for the caption, warm retro palette (mustard, teal, coral, cream), halftone-like dot accents.",
+    "Classic Saturday-morning 70s cartoon character illustration with expressive exaggerated smile, glossy cartoon eyes, warm vibrant palette (mustard, teal, coral, cream), bold #15233F ink outlines (stroke-width 6–8), and 3-tone cel shading.",
   "Comic pop":
-    "Pop-art comic style: heavy black ink outlines, bold saturated primaries, Ben-Day dot pattern accents, a comic burst shape behind the character.",
+    "Pop-art comic cartoon character style: heavy clean #15233F ink outlines (stroke-width 6–8), expressive cartoon eyes and exaggerated grin, bright vibrant colours, sharp cel shading shadows, and comic accent highlights.",
 };
 
 export interface CharacterSheet {
@@ -209,7 +218,7 @@ const ANALYSIS_SCHEMA = {
 
 export async function analyzePerson(
   image: ParsedImage,
-  opts: { count: number; vibe: string; name: string; includeFestival?: boolean },
+  opts: { count: number; vibe: string; name: string },
 ): Promise<AnalysisResult> {
   const message = await callClaude({
     max_tokens: 8000,
@@ -231,15 +240,14 @@ export async function analyzePerson(
           {
             type: "text",
             text:
-              `Build the character sheet for the main person in this photo, then propose exactly ${opts.count} sticker ideas.\n` +
+              `Build the character sheet for the main person in this photo, then propose exactly ${opts.count} cute cartoon caricature sticker ideas.\n` +
               `Theme / vibe for the pack: ${opts.vibe || "fun everyday laptop & phone stickers"}.\n` +
-              (opts.name ? `Their first name is ${opts.name}; you may use it in at most one caption.\n` : "") +
-              (opts.includeFestival
-                ? `IMPORTANT: Make sticker #${opts.count} (the final idea) a joyful Indian campus FESTIVAL celebration sticker (props like a glowing diya lamp, marigold flower garland, confetti/sparklers, festive attire flair, and a punchy 2-word caption like "Festive Vibes" or "Celebration Mode").\n`
-                : "") +
-              "Each idea: a short title, a punchy caption of at most 3 words (or empty string for no text), and one sentence describing the pose, expression and 1–2 props. " +
-              "Make the ideas varied (e.g. waving, coffee, coding on laptop, thumbs-up, celebrating, sleepy, thinking) and positive. " +
-              "If no person is clearly visible, set person_found=false and explain briefly.",
+              (opts.name ? `Their first name is ${opts.name}; keep hashtags focused on their look, mood, activity, or personality.\n` : "") +
+              "For each idea:\n" +
+              "- title: short 2–3 word title.\n" +
+              "- caption: ONE short, catchy, accurately spelled hashtag starting with '#' that directly relates to the person's look, mood, activity, or personality in the photo (for example: #ChaiLover, #GymBro, #SelfieQueen, #TravelMode, #CoolVibes, #chillin, #guidingstar).\n" +
+              "- pose_and_scene: one sentence describing a centred half-body or full-body cute cartoon caricature pose with a slightly exaggerated expressive face, recognizable outfit/accessories, and 1–2 fun props.\n" +
+              "Make the ideas varied and positive. If no person is clearly visible, set person_found=false and explain briefly.",
           },
         ],
       },
@@ -273,13 +281,11 @@ export async function drawSticker(
   content.push({
     type: "text",
     text:
-      `Draw ONE die-cut sticker of this person as a ${style} character.\n\n` +
-      `Character sheet (stay faithful to it so every sticker in the pack looks like the same person):\n` +
+      `Turn this person into ONE unmistakable cute cartoon character / caricature illustration in ${style} style.\n\n` +
+      `Character sheet (keep face likeness, hairstyle, skin tone, clothes, eyewear, and accessories clearly recognizable):\n` +
       `${JSON.stringify(character, null, 2)}\n\n` +
-      `Sticker: "${idea.title}" — ${idea.pose_and_scene}\n` +
-      (idea.caption
-        ? `Caption text to letter into the art: "${idea.caption}" (bold, rounded, high-contrast, inside a banner or speech bubble, fully inside the canvas).\n`
-        : "No caption text.\n") +
+      `Pose & scene: "${idea.title}" — ${idea.pose_and_scene}\n` +
+      "Draw ONLY the centred half-body or full-body cartoon character + 1–2 fun props on a transparent background (do NOT draw a square card background, hashtag text, or white sticker border — the uniform square cartoon sticker frame, hashtag lettering, and die-cut border are added automatically).\n" +
       `Style: ${STYLE_GUIDE[style]}`,
   });
 
@@ -287,15 +293,14 @@ export async function drawSticker(
     max_tokens: 32000,
     output_config: { effort: DRAW_EFFORT },
     system:
-      "You are an expert sticker illustrator who draws directly in hand-written SVG.\n" +
+      "You are a lead 2D animation & cartoon character illustrator who draws expressive, charming cartoon characters in hand-written SVG.\n" +
       "Output requirements:\n" +
       '- Reply with ONLY one <svg> element: xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512". No markdown fences, no commentary.\n' +
-      "- Transparent background: do NOT draw a full-canvas background rect. The artwork is one connected, compact shape centred in the canvas, filling ~80% of it with ≥24px clear margin on every side (a white die-cut border is added later).\n" +
-      "- Allowed elements: g, path, circle, ellipse, rect, polygon, polyline, line, text, tspan, defs, linearGradient, radialGradient, stop, clipPath. No <image>, <script>, <style>, <foreignObject>, filters, external links or web fonts. Text uses font-family=\"Arial Rounded MT Bold, Arial, Helvetica, sans-serif\".\n" +
-      "- Caption text must fit inside its banner/bubble with padding: estimate width ≈ 0.62 × font-size × characters and size the banner (or reduce the font) so nothing is clipped. Give <text> its own fill and stroke=\"none\" (never inherit a group stroke) so letters stay crisp.\n" +
-      "- Quality bar: polished, professional sticker art with smooth bezier paths, a consistent bold outer outline, 1–2 shading tones, clean highlights, and a likeness that is clearly the person (hair shape and colour, skin tone, glasses, facial hair, outfit colours).\n" +
-      "- Be kind and flattering: never exaggerate or alter facial features, skin tone or body shape; no mocking caricature. Do not imitate any studio, brand or artist.\n" +
-      "- Keep it under ~14 KB.",
+      "- Transparent background: do NOT draw a full-canvas background rect or outer sticker card. Draw one compact, centred half-body or full-body cartoon character filling ~82% of the canvas with >=24px clear margin on every side.\n" +
+      "- Allowed elements: g, path, circle, ellipse, rect, polygon, polyline, line, defs, linearGradient, radialGradient, stop, clipPath. No <text>, <image>, <script>, <style>, <foreignObject>, filters, external links or web fonts.\n" +
+      "- Must look unmistakably like a CARTOON CHARACTER (not a geometric icon or realistic portrait): draw an oversized expressive cartoon head (~38–44% of figure height), big bright cartoon eyes with dark pupils and 2 crisp white glossy catchlight circles, expressive curved eyebrows, cute stylized nose, lively exaggerated smile/grin, soft rosy cheek blush ovals, sculpted swooping hair clumps with glossy highlight arcs, and expressive cartoon hands/pose.\n" +
+      "- Bold cartoon ink & 3-tone cel shading: wrap every silhouette, hair lock, facial feature, clothing fold, and prop in clean thick dark ink strokes (stroke=\"#15233F\" stroke-width=\"5\" to \"8\" stroke-linecap=\"round\" stroke-linejoin=\"round\") with rich vibrant colours plus a clean cel shadow crescent and highlight rim.\n" +
+      "- Keep it warm, charming, and flattering without mocking distortion. Keep SVG under ~14 KB.",
     messages: [{ role: "user", content }],
   });
 
@@ -328,5 +333,5 @@ export function sanitizeSvg(raw: string): string {
 export function asStyle(value: unknown): StickerStyle {
   return STICKER_STYLES.includes(value as StickerStyle)
     ? (value as StickerStyle)
-    : "Chibi cartoon";
+    : "Cute caricature";
 }

@@ -16,6 +16,8 @@ export const STICKER_STYLES: StickerStyle[] = [
   "Flat cartoon",
   "Comic",
   "Pixel art",
+  "3D anime",
+  "Retro style",
 ];
 
 // 6 distinct sticker frame colors: Navy #15233F, Orange #F28C38, Sky #7FB3E8, and 3 soft tints
@@ -70,15 +72,6 @@ export const STICKER_THEMES: StickerTheme[] = [
   },
 ];
 
-export const FESTIVAL_STICKER_THEME: StickerTheme = {
-  id: "festival",
-  name: "Festival Marigold",
-  bgColor: "#FFF3D6",
-  textColor: "#15233F",
-  borderColor: "#F59E0B",
-  photoRingColor: "rgba(245, 158, 11, 0.28)",
-};
-
 export const DEFAULT_CAPTIONS: string[] = [
   "Exam Mode",
   "Placement Ready",
@@ -86,10 +79,9 @@ export const DEFAULT_CAPTIONS: string[] = [
   "Deadline Hero",
   "Topper Energy",
   "#DYPAICoE",
-  "Festive Vibes",
 ];
 
-// 6 core + campus B-School + Festival celebration captions
+// 6 core + 9 campus B-School captions for quick swap
 export const ALL_CAPTIONS: string[] = [
   "Exam Mode",
   "Placement Ready",
@@ -97,12 +89,6 @@ export const ALL_CAPTIONS: string[] = [
   "Deadline Hero",
   "Topper Energy",
   "#DYPAICoE",
-  "Festive Vibes",
-  "Happy Diwali",
-  "Campus Fest",
-  "Dandiya Night",
-  "Holi Splash",
-  "Celebration Mode",
   "Case Study Pro",
   "PPT Survivor",
   "Caffeine Powered",
@@ -115,19 +101,18 @@ export const ALL_CAPTIONS: string[] = [
 ];
 
 export const DEFAULT_PAPER_CONFIG: PaperConfig = {
-  labelWidthMm: 85,
-  labelHeightMm: 80,
+  labelWidthMm: 82,
+  labelHeightMm: 82,
   columns: 2,
   rows: 3,
-  topMarginMm: 18,
-  leftMarginMm: 15,
+  topMarginMm: 14,
+  leftMarginMm: 18,
   gapXMm: 10,
-  gapYMm: 10,
-  cornerRadiusMm: 5,
+  gapYMm: 11.5,
+  cornerRadiusMm: 4,
   showCutGuides: false,
   testGridOnly: false,
   dieCutWhiteVinyl: false,
-  includeFestivalSticker: true,
 };
 
 export interface PaperPreset {
@@ -139,51 +124,51 @@ export interface PaperPreset {
 
 export const PAPER_PRESETS: PaperPreset[] = [
   {
-    id: "2x3-standard",
-    label: "2 × 3 Standard (85 × 80 mm)",
-    description: "6 labels · 18 mm top · 15 mm left · 10 mm gap",
+    id: "2x3-square",
+    label: "2 × 3 Square (82 × 82 mm)",
+    description: "6 square stickers · 14 mm top · 18 mm left · centered",
     config: {
-      labelWidthMm: 85,
-      labelHeightMm: 80,
+      labelWidthMm: 82,
+      labelHeightMm: 82,
       columns: 2,
       rows: 3,
-      topMarginMm: 18,
-      leftMarginMm: 15,
+      topMarginMm: 14,
+      leftMarginMm: 18,
       gapXMm: 10,
-      gapYMm: 10,
-      cornerRadiusMm: 5,
+      gapYMm: 11.5,
+      cornerRadiusMm: 4,
     },
   },
   {
-    id: "2x3-large",
-    label: "2 × 3 Tight Grid (92 × 88 mm)",
-    description: "6 labels · 11 mm top · 10 mm left · 6 mm gap",
+    id: "2x3-large-square",
+    label: "2 × 3 Large Square (88 × 88 mm)",
+    description: "6 large squares · 10 mm top · 13 mm left · 8 mm gap",
     config: {
-      labelWidthMm: 92,
+      labelWidthMm: 88,
       labelHeightMm: 88,
       columns: 2,
       rows: 3,
-      topMarginMm: 11,
-      leftMarginMm: 10,
-      gapXMm: 6,
-      gapYMm: 5.5,
-      cornerRadiusMm: 5,
+      topMarginMm: 10,
+      leftMarginMm: 13,
+      gapXMm: 8,
+      gapYMm: 6.5,
+      cornerRadiusMm: 4,
     },
   },
   {
-    id: "3x2-compact",
-    label: "3 × 2 Upper Sheet (60 × 75 mm)",
-    description: "6 labels · 20 mm top · 10 mm left · 5 mm gap",
+    id: "3x2-square",
+    label: "3 × 2 Square Grid (60 × 60 mm)",
+    description: "6 compact squares · 30 mm top · 10 mm left · 5 mm gap",
     config: {
       labelWidthMm: 60,
-      labelHeightMm: 75,
+      labelHeightMm: 60,
       columns: 3,
       rows: 2,
-      topMarginMm: 20,
+      topMarginMm: 30,
       leftMarginMm: 10,
       gapXMm: 5,
-      gapYMm: 8,
-      cornerRadiusMm: 4,
+      gapYMm: 12,
+      cornerRadiusMm: 3.5,
     },
   },
 ];

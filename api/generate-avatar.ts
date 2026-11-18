@@ -7,9 +7,11 @@ import {
 } from "../server/claude";
 
 const BOOTH_STYLE_MAP: Record<string, string> = {
-  "Flat cartoon": "Flat vector",
+  "Flat cartoon": "Cute caricature",
   Comic: "Comic pop",
   "Pixel art": "Chibi cartoon",
+  "3D anime": "3D anime",
+  "Retro style": "Retro style",
 };
 
 interface ApiReq {
@@ -37,7 +39,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
   }
 
   try {
-    const { character } = await analyzePerson(image, {
+    const { character, ideas } = await analyzePerson(image, {
       count: 1,
       vibe: "",
       name: "",
@@ -45,13 +47,13 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     const svg = await drawSticker(
       image,
       character,
-      {
-        title: "Portrait",
-        caption: "",
+      ideas[0] ?? {
+        title: "Caricature Portrait",
+        caption: "#CoolVibes",
         pose_and_scene:
-          "Head-and-shoulders portrait facing the viewer with a big friendly smile, filling the canvas, no props.",
+          "Centred half-body cute cartoon caricature facing the viewer with a bright, slightly exaggerated cheerful expression.",
       },
-      asStyle(BOOTH_STYLE_MAP[String(req.body?.style)] ?? "Flat vector")
+      asStyle(BOOTH_STYLE_MAP[String(req.body?.style)] ?? "Cute caricature")
     );
     res.status(200).json({
       avatarDataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,

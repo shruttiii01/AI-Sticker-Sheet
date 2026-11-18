@@ -11,7 +11,6 @@ interface ApiReq {
     count?: unknown;
     vibe?: unknown;
     name?: unknown;
-    includeFestival?: unknown;
   };
 }
 interface ApiRes {
@@ -39,7 +38,6 @@ export default async function handler(req: ApiReq, res: ApiRes) {
       count,
       vibe: String(req.body?.vibe ?? "").slice(0, 200),
       name: String(req.body?.name ?? "").slice(0, 40),
-      includeFestival: Boolean(req.body?.includeFestival),
     });
     res.status(200).json(result);
   } catch (err) {

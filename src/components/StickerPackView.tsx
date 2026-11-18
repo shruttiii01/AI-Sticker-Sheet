@@ -21,7 +21,10 @@ import {
 } from "../utils/stickerPack";
 
 const CLAUDE_STYLES = [
+  "Cute caricature",
   "Chibi cartoon",
+  "3D anime",
+  "Retro style",
   "Flat vector",
   "Kawaii pastel",
   "Retro badge",
@@ -31,7 +34,6 @@ type ClaudeStyle = (typeof CLAUDE_STYLES)[number];
 
 const VIBES = [
   "Fun everyday laptop & phone stickers",
-  "Festival & celebration vibes",
   "Tech / coder life",
   "Coffee & study vibes",
   "Gym & sports energy",
@@ -112,10 +114,9 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
   const [phase, setPhase] = useState<Phase>("setup");
   const [name, setName] = useState("");
   const [consent, setConsent] = useState(false);
-  const [style, setStyle] = useState<ClaudeStyle>("Chibi cartoon");
+  const [style, setStyle] = useState<ClaudeStyle>("Cute caricature");
   const [vibe, setVibe] = useState(VIBES[0]);
   const [count, setCount] = useState(6);
-  const [includeFestival, setIncludeFestival] = useState(true);
   const [photo, setPhoto] = useState<string | null>(null);
 
   const [apiStatus, setApiStatus] = useState<{ hasApiKey: boolean; model?: string } | null>(null);
@@ -148,7 +149,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
 
     void Promise.all(
       readySlots.map(async ({ s, idx }) => {
-        const png = await svgToDieCutPng(s.svg!, 1024, stickerTag);
+        const png = await svgToDieCutPng(s.svg!, 1200, stickerTag, s.idea.caption);
         return { idx, png };
       }),
     ).then((updates) => {
@@ -176,7 +177,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
         idea,
         style,
       });
-      const png = await svgToDieCutPng(svg, 1024, stickerTagRef.current);
+      const png = await svgToDieCutPng(svg, 1200, stickerTagRef.current, idea.caption);
       updateSlot(i, { status: "done", svg, png });
     } catch (err) {
       updateSlot(i, {
@@ -192,11 +193,10 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
     setError(null);
     setSlots([]);
     setCharacter(null);
-    const totalCount = Math.min(12, count + (includeFestival ? 1 : 0));
     try {
       const result = await postJson<{ character: Record<string, string>; ideas: Idea[] }>(
         "/api/stickers/analyze",
-        { imageDataUrl: photo, count: totalCount, vibe, name, includeFestival },
+        { imageDataUrl: photo, count, vibe, name },
       );
       setCharacter(result.character);
       setSlots(result.ideas.map((idea) => ({ idea, status: "queued", include: true })));
@@ -245,11 +245,11 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
         <div>
           <p className="text-xs font-medium text-slate-500">Step 1 of 3 · Claude AI Sticker Pack</p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Turn a photo into custom die-cut stickers
+            Turn a photo into square cartoon stickers
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Claude studies the photo, designs a pack of sticker ideas and hand-draws each one as
-            vector art – then you print them sized for a laptop, phone, bottle or notebook.
+            Claude turns the person into a cute cartoon character inside uniform 1:1 square
+            stickers – ready to print for laptops, phones, bottles or notebooks.
           </p>
         </div>
 
@@ -314,27 +314,14 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
               onChange={(e) => setCount(Number(e.target.value))}
               className="w-full min-h-[44px] px-3 rounded-xl border border-slate-200 bg-white"
             >
-              {[3, 4, 6, 7, 8].map((n) => (
+              {[1, 3, 4, 6, 8].map((n) => (
                 <option key={n} value={n}>
-                  {n} stickers{includeFestival ? ` (+1 Festival = ${Math.min(12, n + 1)})` : ""}
+                  {n} {n === 1 ? "sticker" : "stickers"}
                 </option>
               ))}
             </select>
           </label>
         </div>
-
-        <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/60 border border-amber-200 text-sm text-slate-800 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={includeFestival}
-            onChange={(e) => setIncludeFestival(e.target.checked)}
-            className="mt-1 accent-[#F28C38]"
-          />
-          <span>
-            <strong className="font-semibold">Add +1 Bonus Festival Sticker:</strong>{" "}
-            Includes one extra festive celebration sticker (diya, marigold &amp; sparkles) in your pack.
-          </span>
-        </label>
 
         <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
           <input
@@ -368,7 +355,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
         firstName={name}
         capturedPhoto={photo}
         onCapturePhoto={(url) => setPhoto(url || null)}
-        stickerCount={Math.min(12, count + (includeFestival ? 1 : 0))}
+        stickerCount={count}
         onBack={() => setPhase("setup")}
         onContinue={() => {
           setPhase("studio");
@@ -442,14 +429,14 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
                 key={i}
                 className={`rounded-xl border p-2 space-y-2 ${
                   slot.include && slot.status === "done" ? "border-[#15233F]" : "border-slate-200"
-                } bg-[repeating-conic-gradient(#f1f5f9_0%_25%,#ffffff_0%_50%)] bg-[length:16px_16px]`}
+                } bg-slate-50`}
               >
                 <div className="aspect-square flex items-center justify-center">
                   {slot.status === "done" && slot.png ? (
                     <img
                       src={slot.png}
                       alt={slot.idea.title}
-                      className="w-full h-full object-contain drop-shadow-md"
+                      className="w-full h-full object-contain"
                     />
                   ) : slot.status === "error" ? (
                     <p className="text-[11px] text-red-700 text-center px-2">{slot.error}</p>
@@ -575,7 +562,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
           </button>
           <p className="text-[11px] text-slate-500">
             Print on A4 sticker / vinyl paper at 100% scale (Actual size), margins None. Cut along
-            the grey hairline.
+            the square sticker border.
           </p>
           <button
             type="button"

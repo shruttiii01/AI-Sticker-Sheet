@@ -1,5 +1,5 @@
 import { ApiError, GoogleGenAI } from '@google/genai';
-import { STYLE_GUIDE, StickerError, type CharacterSheet, type StickerIdea, type StickerStyle } from './claude';
+import { STYLE_GUIDE, StickerError, type CharacterSheet, type StickerIdea, type StickerStyle } from './claude.js';
 
 /**
  * Gemini sticker painter.

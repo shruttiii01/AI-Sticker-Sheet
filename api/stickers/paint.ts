@@ -4,8 +4,8 @@ import {
   parseImageDataUrl,
   type CharacterSheet,
   type StickerIdea,
-} from "../../server/claude";
-import { paintSticker } from "../../server/gemini";
+} from "../../server/claude.js";
+import { paintSticker } from "../../server/gemini.js";
 
 // Vercel function: Gemini paints one sticker (Claude has already planned the pack).
 interface ApiReq {

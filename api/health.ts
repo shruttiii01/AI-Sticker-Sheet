@@ -1,4 +1,4 @@
-import { hasCredentials, MODEL } from "../server/claude";
+import { hasCredentials, MODEL } from "../server/claude.js";
 
 interface ApiReq {
   method?: string;

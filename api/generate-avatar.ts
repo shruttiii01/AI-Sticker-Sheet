@@ -4,7 +4,7 @@ import {
   asStyle,
   drawSticker,
   parseImageDataUrl,
-} from "../server/claude";
+} from "../server/claude.js";
 
 const BOOTH_STYLE_MAP: Record<string, string> = {
   "Flat cartoon": "Cute caricature",

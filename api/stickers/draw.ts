@@ -5,7 +5,7 @@ import {
   parseImageDataUrl,
   type CharacterSheet,
   type StickerIdea,
-} from "../../server/claude";
+} from "../../server/claude.js";
 
 interface ApiReq {
   method?: string;

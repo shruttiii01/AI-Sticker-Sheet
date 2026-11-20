@@ -1,5 +1,5 @@
-import { hasCredentials, MODEL } from "../../server/claude";
-import { getImageModel, hasGemini } from "../../server/gemini";
+import { hasCredentials, MODEL } from "../../server/claude.js";
+import { getImageModel, hasGemini } from "../../server/gemini.js";
 
 // Vercel function: which AI engines this deployment can use.
 // (Live insights, the sticker wall and the backup pack need the local server and are skipped on Vercel.)

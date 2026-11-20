@@ -12,8 +12,8 @@ import {
   type CharacterSheet,
   type StickerIdea,
   MAX_STICKERS,
-} from './claude';
-import { currentImageModel, getImageModel, hasGemini, paintSticker } from './gemini';
+} from './claude.js';
+import { currentImageModel, getImageModel, hasGemini, paintSticker } from './gemini.js';
 
 /**
  * Live Sticker Showcase routes:

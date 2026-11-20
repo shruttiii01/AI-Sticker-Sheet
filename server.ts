@@ -14,6 +14,7 @@ import {
   parseImageDataUrl,
   type CharacterSheet,
   type StickerIdea,
+  MAX_STICKERS,
 } from "./server/claude";
 import { registerShowcaseRoutes } from "./server/showcase";
 
@@ -61,7 +62,7 @@ async function startServer() {
       res.status(400).json({ error: "Missing or invalid photo (expected a base64 image data URL)." });
       return;
     }
-    const count = Math.min(12, Math.max(1, Number(req.body?.count) || 6));
+    const count = Math.min(MAX_STICKERS, Math.max(1, Number(req.body?.count) || MAX_STICKERS));
     try {
       const result = await analyzePerson(image, {
         count,

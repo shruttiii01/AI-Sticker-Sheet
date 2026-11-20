@@ -133,6 +133,7 @@ export const BrandMark: React.FC<{ size?: number }> = ({ size = 40 }) => (
 export interface ShowcaseHealth {
   claude: boolean;
   model: string;
+  geminiModel?: string | null;
   gemini: boolean;
   backupStickers: number;
 }

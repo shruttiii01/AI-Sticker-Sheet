@@ -30,6 +30,7 @@ import {
   svgToDieCutPng,
   type PlacedSticker,
 } from '../utils/stickerPack';
+import { removePlainBackground, rasterToSvg } from './raster';
 import { BrandMark, Eyebrow, GOLD, SAFFRON, TiltCard, Words, ease, sfx, toggleFullscreen, useHealth } from './ui';
 
 const STYLES = [
@@ -58,8 +59,13 @@ interface Idea {
   pose_and_scene: string;
 }
 type SlotStatus = 'queued' | 'drawing' | 'done' | 'error';
+type Engine = 'gemini' | 'claude';
+type EngineMode = Engine | 'duel';
+const ENGINE_LABEL: Record<Engine, string> = { gemini: 'Gemini', claude: 'Claude' };
+const ENGINE_VERB: Record<EngineMode, string> = { gemini: 'Gemini is painting', claude: 'Claude is drawing', duel: 'Claude and Gemini are drawing' };
 interface Slot {
   idea: Idea;
+  engine: Engine;
   status: SlotStatus;
   svg?: string;
   png?: string;
@@ -69,6 +75,13 @@ interface Slot {
 }
 type Character = Record<string, string>;
 type Phase = 'setup' | 'camera' | 'scan' | 'reveal';
+const engineFor = (mode: EngineMode, i: number): Engine => (mode === 'duel' ? (i % 2 === 0 ? 'gemini' : 'claude') : mode);
+
+/** Gemini returns a painted PNG: strip its plain background, then frame it like Claude's vector art. */
+async function artToSticker(art: { svg?: string; img?: string }, caption: string): Promise<string> {
+  const svg = art.svg ?? rasterToSvg(await removePlainBackground(art.img!));
+  return svgToDieCutPng(svg, 1200, '#DYPAICoE', caption);
+}
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -134,9 +147,12 @@ const Setup: React.FC<{
   onBackup: () => void;
   backupCount: number;
   claudeOk: boolean | null;
+  geminiOk: boolean;
+  engine: EngineMode;
+  setEngine: (e: EngineMode) => void;
 }> = (p) => (
   <div className="min-h-screen flex flex-col justify-center px-[6vw] pt-24 pb-16 max-w-[1500px] mx-auto">
-    <Eyebrow>Experience 02 · AI Sticker Studio · Claude</Eyebrow>
+    <Eyebrow>AI Sticker Studio · {p.geminiOk ? 'Claude + Gemini' : 'Claude'}</Eyebrow>
     <h1 className="mt-4 font-display font-bold text-white leading-[1.02] text-[clamp(44px,7vw,120px)]">
       <Words text="Smile once." delay={0.15} />
       <br />
@@ -148,7 +164,9 @@ const Setup: React.FC<{
       transition={{ delay: 1.2 }}
       className="mt-5 text-white/60 text-[clamp(15px,1.5vw,24px)] max-w-[60ch]"
     >
-      Claude looks at your photo, invents sticker ideas about you, and hand-draws every single one as vector art, live, in about 30 seconds.
+      {p.geminiOk
+        ? 'Claude studies your photo and invents sticker ideas about you. Gemini paints each one in DYP AI CoE colours, live, in seconds.'
+        : 'Claude looks at your photo, invents sticker ideas about you, and hand-draws every single one as vector art, live, in about 30 seconds.'}
     </motion.p>
 
     {p.claudeOk === false && (
@@ -194,7 +212,35 @@ const Setup: React.FC<{
       </div>
 
       <div>
-        <p className="text-white/60 text-xs font-bold tracking-widest uppercase">Art style</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-white/60 text-xs font-bold tracking-widest uppercase">Art style</p>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className="text-white/50 font-bold tracking-widest uppercase mr-1">Drawing AI</span>
+            {(
+              [
+                ['gemini', 'Gemini paints', 'Rich full-colour illustration'],
+                ['claude', 'Claude draws', 'Crisp vector art'],
+                ['duel', 'AI duel', 'Half each, side by side'],
+              ] as [EngineMode, string, string][]
+            ).map(([id, label, hint]) => {
+              const disabled = id !== 'claude' && !p.geminiOk;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  title={disabled ? 'Add GEMINI_API_KEY to enable' : hint}
+                  disabled={disabled}
+                  onClick={() => p.setEngine(id)}
+                  className={`rounded-full px-3.5 py-1.5 font-semibold border transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                    p.engine === id ? 'bg-[#F2B33D] text-[#0b1f4b] border-[#F2B33D]' : 'text-white border-white/25 hover:border-[#F2B33D]'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {STYLES.map((s, i) => (
             <motion.button
@@ -219,7 +265,7 @@ const Setup: React.FC<{
       <div className="flex flex-wrap items-center gap-x-8 gap-y-4 pt-2 border-t border-white/10">
         <div className="flex items-center gap-2 text-white/70 text-sm">
           Stickers
-          {[4, 6].map((n) => (
+          {[1, 2, 3].map((n) => (
             <button
               key={n}
               type="button"
@@ -232,7 +278,7 @@ const Setup: React.FC<{
         </div>
         <label className="flex items-start gap-2.5 text-sm text-white/80 cursor-pointer max-w-md">
           <input type="checkbox" checked={p.consent} onChange={(e) => p.setConsent(e.target.checked)} className="mt-1 w-4 h-4 accent-[#F2B33D]" />
-          The person in the photo agrees to it being sent to Anthropic's Claude API to make their stickers.
+          {p.engine === 'claude' ? "The person in the photo agrees to it being sent to Anthropic's Claude API to make their stickers." : "The person in the photo agrees to it being sent to Anthropic's Claude API and Google's Gemini API to make their stickers."}
         </label>
         <label className="flex items-start gap-2.5 text-sm text-white/80 cursor-pointer max-w-xs">
           <input type="checkbox" checked={p.wallOptIn} onChange={(e) => p.setWallOptIn(e.target.checked)} className="mt-1 w-4 h-4 accent-[#F2B33D]" />
@@ -564,7 +610,7 @@ const StickerCard: React.FC<{ slot: Slot; index: number; onRedraw: () => void }>
               <img src={slot.png} alt={slot.idea.title} className="w-full h-full object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,.45)]" />
               {slot.ms && (
                 <span className="absolute -top-2 -right-2 text-[11px] font-bold px-2.5 py-1 rounded-full text-[#0b1f4b]" style={{ background: GOLD }}>
-                  {(slot.ms / 1000).toFixed(1)}s
+                  {ENGINE_LABEL[slot.engine]} · {(slot.ms / 1000).toFixed(1)}s
                 </span>
               )}
               <button
@@ -596,7 +642,7 @@ const StickerCard: React.FC<{ slot: Slot; index: number; onRedraw: () => void }>
                 <p className="mt-3 text-xs tracking-widest uppercase text-white/50">
                   {slot.status === 'drawing' && slot.startedAt ? (
                     <>
-                      Claude is drawing · <span className="tabular-nums" style={{ color: GOLD }}><Elapsed since={slot.startedAt} /></span>
+                      {slot.engine === 'gemini' ? 'Gemini is painting' : 'Claude is drawing'} · <span className="tabular-nums" style={{ color: GOLD }}><Elapsed since={slot.startedAt} /></span>
                     </>
                   ) : (
                     'Queued'
@@ -733,7 +779,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   const [name, setName] = useState('');
   const [style, setStyle] = useState<string>('Cute caricature');
   const [vibe, setVibe] = useState(VIBES[0]);
-  const [count, setCount] = useState(6);
+  const [count, setCount] = useState(3);
   const [consent, setConsent] = useState(false);
   const [wallOptIn, setWallOptIn] = useState(true);
   const [photo, setPhoto] = useState<string | null>(null);
@@ -744,6 +790,12 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   const [showPrint, setShowPrint] = useState(false);
   const [posted, setPosted] = useState(false);
   const [isBackup, setIsBackup] = useState(false);
+  const [engine, setEngine] = useState<EngineMode>('claude');
+  // Default to Gemini painting as soon as the server reports a Gemini key.
+  const engineTouched = useRef(false);
+  useEffect(() => {
+    if (health?.gemini && !engineTouched.current) setEngine('gemini');
+  }, [health?.gemini]);
   const runId = useRef(0);
   const celebrated = useRef(false);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -751,13 +803,17 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   const updateSlot = (i: number, patch: Partial<Slot>) => setSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
 
   const drawOne = useCallback(
-    async (run: number, i: number, idea: Idea, char: Character, img: string | null) => {
+    async (run: number, i: number, idea: Idea, char: Character, img: string | null, eng: Engine) => {
       const startedAt = Date.now();
-      updateSlot(i, { status: 'drawing', startedAt, error: undefined });
+      updateSlot(i, { status: 'drawing', startedAt, error: undefined, engine: eng });
       try {
-        const { svg } = await postJson<{ svg: string; ms: number }>('/api/stickers/draw', { imageDataUrl: img, character: char, idea, style });
-        const png = await svgToDieCutPng(svg, 1200, '#DYPAICoE', idea.caption);
-        if (run === runId.current) updateSlot(i, { status: 'done', svg, png, ms: Date.now() - startedAt });
+        const body = { imageDataUrl: img, character: char, idea, style };
+        const art =
+          eng === 'gemini'
+            ? await postJson<{ img: string; ms: number }>('/api/stickers/paint', body)
+            : await postJson<{ svg: string; ms: number }>('/api/stickers/draw', body);
+        const png = await artToSticker(art, idea.caption);
+        if (run === runId.current) updateSlot(i, { status: 'done', svg: 'svg' in art ? art.svg : undefined, png, ms: Date.now() - startedAt });
       } catch (e) {
         if (run === runId.current) updateSlot(i, { status: 'error', error: e instanceof Error ? e.message : 'Drawing failed' });
       }
@@ -782,16 +838,16 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
         if (run !== runId.current) return;
         setCharacter(res.character);
         setIdeas(res.ideas);
-        setSlots(res.ideas.map((idea) => ({ idea, status: 'queued' })));
+        setSlots(res.ideas.map((idea, i) => ({ idea, status: 'queued', engine: engineFor(engine, i) })));
         // Start drawing immediately; give the audience a beat to read the ideas, then cut to the reveal.
-        res.ideas.forEach((idea, i) => void drawOne(run, i, idea, res.character, img));
+        res.ideas.forEach((idea, i) => void drawOne(run, i, idea, res.character, img, engineFor(engine, i)));
         await new Promise((r) => setTimeout(r, 3800));
         if (run === runId.current) setPhase('reveal');
       } catch (e) {
         if (run === runId.current) setError(e instanceof Error ? e.message : 'Something went wrong.');
       }
     },
-    [count, vibe, name, style, drawOne],
+    [count, vibe, name, style, drawOne, engine],
   );
 
   const playBackup = useCallback(async () => {
@@ -800,19 +856,21 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
     setPosted(false);
     setIsBackup(true);
     setError(null);
-    const { draws } = await fetch('/api/stickers/backup').then((r) => r.json() as Promise<{ draws: { svg: string; idea: Idea; character: Character }[] }>);
+    const { draws } = await fetch('/api/stickers/backup').then(
+      (r) => r.json() as Promise<{ draws: { svg?: string; img?: string; engine?: Engine; idea: Idea; character: Character }[] }>,
+    );
     if (!draws.length) return;
     const pick = draws.slice(0, count);
     setPhoto(null);
     setCharacter(pick[0].character);
     setIdeas(pick.map((d) => d.idea));
-    setSlots(pick.map((d) => ({ idea: d.idea, status: 'queued' })));
+    setSlots(pick.map((d) => ({ idea: d.idea, status: 'queued', engine: d.engine ?? 'claude' })));
     setPhase('reveal');
     pick.forEach((d, i) => {
       const delay = 1200 + i * 900 + Math.random() * 500;
       setTimeout(() => run === runId.current && updateSlot(i, { status: 'drawing', startedAt: Date.now() }), 300 + i * 150);
       setTimeout(async () => {
-        const png = await svgToDieCutPng(d.svg, 1200, '#DYPAICoE', d.idea.caption);
+        const png = await artToSticker(d, d.idea.caption);
         if (run === runId.current) updateSlot(i, { status: 'done', svg: d.svg, png });
       }, delay);
     });
@@ -927,6 +985,12 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
               onBackup={() => void playBackup()}
               backupCount={health?.backupStickers ?? 0}
               claudeOk={health ? health.claude : null}
+              geminiOk={Boolean(health?.gemini)}
+              engine={engine}
+              setEngine={(e) => {
+                engineTouched.current = true;
+                setEngine(e);
+              }}
             />
           )}
           {phase === 'camera' && (
@@ -946,12 +1010,15 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
             <div className="min-h-screen px-[5vw] pt-20 pb-28 max-w-[1800px] mx-auto">
               <div className="flex flex-wrap items-end justify-between gap-6">
                 <div>
-                  <Eyebrow>{allDone ? 'Your pack is ready' : `Claude is drawing ${slots.length} stickers in parallel`}</Eyebrow>
+                  <Eyebrow>{allDone ? 'Your pack is ready' : `${ENGINE_VERB[engine]} ${slots.length} stickers in parallel`}</Eyebrow>
                   <h1 className="mt-3 font-display font-bold text-white leading-[1.05] text-[clamp(36px,5vw,84px)]">
                     {allDone ? (
                       <Words text={`${name.trim() || 'You'}, meet your sticker pack.`} gold={['sticker', 'pack.']} />
                     ) : (
-                      <Words text="Hand-drawn by AI, right now." gold={['right', 'now.']} />
+                      <Words
+                        text={engine === 'duel' ? 'Claude vs Gemini, right now.' : engine === 'gemini' ? 'Planned by Claude, painted by Gemini.' : 'Hand-drawn by AI, right now.'}
+                        gold={engine === 'duel' ? ['right', 'now.'] : engine === 'gemini' ? ['painted', 'gemini.'] : ['right', 'now.']}
+                      />
                     )}
                   </h1>
                 </div>
@@ -986,7 +1053,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
                     key={i}
                     slot={slot}
                     index={i}
-                    onRedraw={() => character && void drawOne(runId.current, i, slot.idea, character, photo)}
+                    onRedraw={() => character && void drawOne(runId.current, i, slot.idea, character, photo, slot.engine)}
                   />
                 ))}
               </div>

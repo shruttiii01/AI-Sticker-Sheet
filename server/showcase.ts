@@ -11,7 +11,9 @@ import {
   parseImageDataUrl,
   type CharacterSheet,
   type StickerIdea,
+  MAX_STICKERS,
 } from './claude';
+import { currentImageModel, getImageModel, hasGemini, paintSticker } from './gemini';
 
 /**
  * Live Sticker Showcase routes:
@@ -57,6 +59,8 @@ interface InsightsState {
   drawMs: number[];
   analyzeMs: number[];
   activity: number[]; // event timestamps (last 600)
+  engines: Tally; // stickers finished per engine ("Claude" / "Gemini")
+  engineMs: Record<string, number[]>;
 }
 
 const freshInsights = (): InsightsState => ({
@@ -68,9 +72,13 @@ const freshInsights = (): InsightsState => ({
   drawMs: [],
   analyzeMs: [],
   activity: [],
+  engines: {},
+  engineMs: {},
 });
 
 let insights = load<InsightsState>('insights.json', freshInsights());
+insights.engines ??= {};
+insights.engineMs ??= {};
 
 interface WallItem {
   id: string;
@@ -83,7 +91,9 @@ interface WallItem {
 let wall = load<{ items: WallItem[] }>('wall.json', { items: [] });
 
 interface BackupDraw {
-  svg: string;
+  svg?: string; // Claude vector art
+  img?: string; // Gemini raster art (data URL)
+  engine?: 'claude' | 'gemini';
   idea: StickerIdea;
   style: string;
   character: CharacterSheet;
@@ -104,6 +114,15 @@ function touch() {
   save('insights.json', insights);
 }
 
+function recordDraw(engine: 'Claude' | 'Gemini', ms: number, idea: StickerIdea, style: string) {
+  push(insights.drawMs, ms, 80);
+  insights.counters.stickersDrawn++;
+  bump(insights.engines, engine);
+  push((insights.engineMs[engine] ??= []), ms, 60);
+  push(insights.captions, { caption: idea.caption, title: idea.title, style, at: Date.now() }, 40);
+  touch();
+}
+
 const median = (xs: number[]) => {
   if (!xs.length) return 0;
   const s = [...xs].sort((a, b) => a - b);
@@ -120,11 +139,15 @@ function sendError(res: Response, err: unknown) {
 }
 
 export function registerShowcaseRoutes(app: Express) {
+  if (hasGemini()) void getImageModel();
+
   app.get('/api/showcase/health', (_req: Request, res: Response) => {
     res.json({
       ok: true,
       claude: hasCredentials(),
       model: MODEL,
+      gemini: hasGemini(),
+      geminiModel: currentImageModel(),
       backupStickers: backup.draws.length,
     });
   });
@@ -136,7 +159,7 @@ export function registerShowcaseRoutes(app: Express) {
       res.status(400).json({ error: 'Missing or invalid photo.' });
       return;
     }
-    const count = Math.min(12, Math.max(1, Number(req.body?.count) || 6));
+    const count = Math.min(MAX_STICKERS, Math.max(1, Number(req.body?.count) || MAX_STICKERS));
     const t0 = Date.now();
     try {
       const result = await analyzePerson(image, {
@@ -170,13 +193,35 @@ export function registerShowcaseRoutes(app: Express) {
     try {
       const svg = await drawSticker(image, character, idea, style);
       const ms = Date.now() - t0;
-      push(insights.drawMs, ms, 80);
-      insights.counters.stickersDrawn++;
-      push(insights.captions, { caption: idea.caption, title: idea.title, style, at: Date.now() }, 40);
-      touch();
-      push(backup.draws, { svg, idea, style, character }, 8);
+      recordDraw('Claude', ms, idea, style);
+      push(backup.draws, { svg, engine: 'claude', idea, style, character }, 8);
       save('backup.json', backup);
       res.json({ svg, ms });
+    } catch (err) {
+      insights.counters.stickerErrors++;
+      touch();
+      sendError(res, err);
+    }
+  });
+
+  // Gemini paints the sticker as a raster illustration (Claude still plans the pack).
+  app.post('/api/stickers/paint', async (req: Request, res: Response) => {
+    const image = parseImageDataUrl(req.body?.imageDataUrl);
+    const character = req.body?.character as CharacterSheet | undefined;
+    const idea = req.body?.idea as StickerIdea | undefined;
+    if (!character || !idea?.title) {
+      res.status(400).json({ error: 'Missing character sheet or sticker idea.' });
+      return;
+    }
+    const style = asStyle(req.body?.style);
+    const t0 = Date.now();
+    try {
+      const { dataUrl, model } = await paintSticker(image, character, idea, style);
+      const ms = Date.now() - t0;
+      recordDraw('Gemini', ms, idea, style);
+      push(backup.draws, { img: dataUrl, engine: 'gemini', idea, style, character }, 8);
+      save('backup.json', backup);
+      res.json({ img: dataUrl, ms, model });
     } catch (err) {
       insights.counters.stickerErrors++;
       touch();
@@ -199,6 +244,7 @@ export function registerShowcaseRoutes(app: Express) {
     res.json({
       ...insights,
       drawMedianMs: median(insights.drawMs),
+      engineMedianMs: Object.fromEntries(Object.entries(insights.engineMs).map(([k, v]) => [k, median(v)])),
       analyzeMedianMs: median(insights.analyzeMs),
       perMinute,
       wallCount: wall.items.length,

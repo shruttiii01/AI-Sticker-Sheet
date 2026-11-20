@@ -12,6 +12,9 @@ import Anthropic from "@anthropic-ai/sdk";
  */
 
 export const MODEL = process.env.STICKER_MODEL || "claude-opus-5-5";
+
+/** Hard cap on stickers per pack (enforced server-side for every route). */
+export const MAX_STICKERS = 3;
 const DRAW_EFFORT = (process.env.STICKER_EFFORT || "medium") as
   | "low"
   | "medium"
@@ -29,7 +32,7 @@ export const STICKER_STYLES = [
 ] as const;
 export type StickerStyle = (typeof STICKER_STYLES)[number];
 
-const STYLE_GUIDE: Record<StickerStyle, string> = {
+export const STYLE_GUIDE: Record<StickerStyle, string> = {
   "Cute caricature":
     "Expressive cute cartoon character / caricature with oversized cartoon head (~40% of figure height), big glossy cartoon eyes with white catchlights, arched eyebrows, rosy cheek blush, bold clean #15233F dark ink outlines (stroke-width 5–8), bright vibrant colours, and 3-tone cel shading. Keep the person's exact hairstyle, skin tone, glasses/facial hair, clothes, and accessories clearly recognizable in a cheerful half-body or full-body pose.",
   "Chibi cartoon":

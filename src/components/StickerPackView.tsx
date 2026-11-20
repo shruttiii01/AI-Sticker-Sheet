@@ -116,7 +116,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
   const [consent, setConsent] = useState(false);
   const [style, setStyle] = useState<ClaudeStyle>("Cute caricature");
   const [vibe, setVibe] = useState(VIBES[0]);
-  const [count, setCount] = useState(6);
+  const [count, setCount] = useState(3);
   const [photo, setPhoto] = useState<string | null>(null);
 
   const [apiStatus, setApiStatus] = useState<{ hasApiKey: boolean; model?: string } | null>(null);
@@ -314,7 +314,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
               onChange={(e) => setCount(Number(e.target.value))}
               className="w-full min-h-[44px] px-3 rounded-xl border border-slate-200 bg-white"
             >
-              {[1, 3, 4, 6, 8].map((n) => (
+              {[1, 2, 3].map((n) => (
                 <option key={n} value={n}>
                   {n} {n === 1 ? "sticker" : "stickers"}
                 </option>

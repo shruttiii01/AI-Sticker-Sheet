@@ -4,6 +4,28 @@ Snap a photo → Claude studies the person and hand-draws a pack of personalised
 stickers as vector art → print die-cut stickers sized for laptops, phones,
 water bottles and notebooks.
 
+## Live stage showcase
+
+The app opens as a full-screen stage experience for live audiences:
+
+- **Hub**: opening title sequence, live counters, two experiences
+- **`1` · Sticker Studio**: 3-2-1 camera with flash → Claude scans the photo and invents ideas → stickers flip in as Claude draws them in parallel → confetti → print or send to the wall
+- **`2` · Live Wall**: audience stickers fly in (opt-in), with live counts, Claude draw times, favourite styles and themes, and rotating insights
+- **Classic booth & paper tools**: the original booth, exact-sticker and paper-setup screens (link on the hub, `#/booth`)
+
+```bash
+npm run showcase           # production build, no live reload: use this on stage
+```
+
+Presenter keys: `H` home · `1` studio · `2` wall · `F` fullscreen · `O` replay titles · in the studio: `Space` snap, `P` print, `N` next person, `B` backup pack.
+
+**Stage runbook**
+1. Rehearse one real sticker run before doors open. Every successful drawing is saved as the **backup pack** (`data/`, git-ignored). If the venue network fails, press `B` on the studio setup screen to replay it with the same animations.
+2. Reset the live numbers before the audience arrives: the ⟲ button on the Live Wall (the backup pack is kept).
+3. Use Chrome on the presenting laptop (the camera needs a real browser), fullscreen with `F`.
+
+Live insights, the wall and the backup pack are served by `server.ts` (`server/showcase.ts`). On the Vercel deployment only the sticker API exists, so those extras are quietly skipped there.
+
 ## Run it
 
 ```bash

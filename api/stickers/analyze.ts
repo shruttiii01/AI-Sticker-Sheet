@@ -2,6 +2,7 @@ import {
   StickerError,
   analyzePerson,
   parseImageDataUrl,
+  MAX_STICKERS,
 } from "../../server/claude";
 
 interface ApiReq {
@@ -32,7 +33,7 @@ export default async function handler(req: ApiReq, res: ApiRes) {
     return;
   }
 
-  const count = Math.min(12, Math.max(1, Number(req.body?.count) || 6));
+  const count = Math.min(MAX_STICKERS, Math.max(1, Number(req.body?.count) || MAX_STICKERS));
   try {
     const result = await analyzePerson(image, {
       count,

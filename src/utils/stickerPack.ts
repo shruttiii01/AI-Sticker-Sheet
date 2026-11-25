@@ -1,5 +1,5 @@
 /**
- * Turns Claude's SVG artwork into printable die-cut stickers and packs them
+ * Turns Gemini's SVG artwork into printable die-cut stickers and packs them
  * onto A4 pages at real-world sizes for different surfaces.
  */
 

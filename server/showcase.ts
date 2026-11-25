@@ -2,7 +2,7 @@ import type { Express, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
 import {
-  MODEL,
+  modelSummary,
   StickerError,
   analyzePerson,
   asStyle,
@@ -12,7 +12,7 @@ import {
   type CharacterSheet,
   type StickerIdea,
   MAX_STICKERS,
-} from './claude.js';
+} from './ai.js';
 import { currentImageModel, getImageModel, hasGemini, paintSticker } from './gemini.js';
 
 /**
@@ -145,7 +145,7 @@ export function registerShowcaseRoutes(app: Express) {
     res.json({
       ok: true,
       claude: hasCredentials(),
-      model: MODEL,
+      model: modelSummary(),
       gemini: hasGemini(),
       geminiModel: currentImageModel(),
       backupStickers: backup.draws.length,

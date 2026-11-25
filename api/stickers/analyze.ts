@@ -3,7 +3,7 @@ import {
   analyzePerson,
   parseImageDataUrl,
   MAX_STICKERS,
-} from "../../server/claude.js";
+} from "../../server/ai.js";
 
 interface ApiReq {
   method?: string;

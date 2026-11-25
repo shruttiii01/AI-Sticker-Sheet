@@ -134,7 +134,7 @@ const StickerPreview: React.FC = () => (
       animate={{ opacity: [0.3, 1, 0.3] }}
       transition={{ duration: 2.4, repeat: Infinity }}
     >
-      drawn by Claude · live
+      drawn by Gemini · live
     </motion.span>
   </div>
 );
@@ -171,7 +171,7 @@ const Hub: React.FC<{ go: (r: Route) => void }> = ({ go }) => {
       eyebrow: 'Step in · AI Sticker Studio',
       title: 'Smile at the camera.',
       gold: 'Become a sticker.',
-      body: 'Claude studies your photo, invents a sticker pack about you and hand-draws every one, ready to print for your laptop, phone or bottle.',
+      body: 'Gemini studies your photo, invents a sticker pack about you and hand-draws every one, ready to print for your laptop, phone or bottle.',
       preview: <StickerPreview />,
       cta: 'Start',
     },
@@ -203,7 +203,7 @@ const Hub: React.FC<{ go: (r: Route) => void }> = ({ go }) => {
           {health && (
             <span className={`hidden md:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full glass ${health.claude ? 'text-emerald-300' : 'text-red-300'}`}>
               {health.claude ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              {health.claude ? `Claude connected · ${health.model}` : 'Claude key missing'}
+              {health.claude ? `Gemini connected · ${health.model}` : 'Gemini key missing'}
             </span>
           )}
           <button onClick={toggleFullscreen} title="Fullscreen (F)" className="p-2.5 rounded-xl glass text-white cursor-pointer">
@@ -213,7 +213,7 @@ const Hub: React.FC<{ go: (r: Route) => void }> = ({ go }) => {
       </header>
 
       <div className="mt-[4vh]">
-        <Eyebrow delay={0.2}>Live on stage · drawn by Claude</Eyebrow>
+        <Eyebrow delay={0.2}>Live on stage · drawn by Gemini</Eyebrow>
         <h1 className="mt-4 font-display font-bold text-white leading-[1.02] text-[clamp(40px,5.6vw,104px)]">
           <Words text="One smile. One AI." delay={0.3} />
           <br />
@@ -271,7 +271,7 @@ const Hub: React.FC<{ go: (r: Route) => void }> = ({ go }) => {
         </span>
         {[
           ['People captured', c?.stickerSessions ?? 0],
-          ['Stickers drawn by Claude', c?.stickersDrawn ?? 0],
+          ['Stickers drawn by Gemini', c?.stickersDrawn ?? 0],
           ['On the live wall', c?.wallPosts ?? 0],
         ].map(([label, n]) => (
           <div key={label as string} className="flex items-baseline gap-3">

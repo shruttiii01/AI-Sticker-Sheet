@@ -243,12 +243,12 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
     return (
       <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
         <div>
-          <p className="text-xs font-medium text-slate-500">Step 1 of 3 · Claude AI Sticker Pack</p>
+          <p className="text-xs font-medium text-slate-500">Step 1 of 3 · Gemini AI Sticker Pack</p>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Turn a photo into square cartoon stickers
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Claude turns the person into a cute cartoon character inside uniform 1:1 square
+            Gemini turns the person into a cute cartoon character inside uniform 1:1 square
             stickers – ready to print for laptops, phones, bottles or notebooks.
           </p>
         </div>
@@ -257,7 +257,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
           <div className="flex gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900">
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
             <span>
-              The server has no <code>ANTHROPIC_API_KEY</code>. Add it to <code>.env</code> and restart
+              The server has no <code>GEMINI_API_KEY</code>. Add it to <code>.env</code> and restart
               <code> npm run dev</code>.
             </span>
           </div>
@@ -331,7 +331,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
             className="mt-1"
           />
           <span>
-            The person in the photo agrees to it being sent to Anthropic's Claude API to create their
+            The person in the photo agrees to it being sent to Google's Gemini API to create their
             stickers.
           </span>
         </label>
@@ -377,7 +377,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
               )}
               <div>
                 <p className="text-xs font-medium text-slate-500">
-                  Step 3 of 3 · {style} · {apiStatus?.model ?? "Claude"}
+                  Step 3 of 3 · {style} · {apiStatus?.model ?? "Gemini"}
                 </p>
                 <h1 className="text-xl font-bold text-slate-900">Your AI sticker pack</h1>
               </div>
@@ -407,7 +407,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
           {analyzing && (
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <Loader2 className="w-4 h-4 animate-spin" />
-              Claude is studying the photo and planning your sticker pack…
+              Gemini is studying the photo and planning your sticker pack…
             </div>
           )}
           {error && (
@@ -418,7 +418,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
           )}
           {character && (
             <p className="text-xs text-slate-500">
-              <span className="font-semibold text-slate-700">Claude sees: </span>
+              <span className="font-semibold text-slate-700">Gemini sees: </span>
               {character.summary}
             </p>
           )}
@@ -443,7 +443,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
                   ) : (
                     <div className="flex flex-col items-center gap-1 text-[11px] text-slate-500 text-center px-2">
                       <Sparkles className="w-5 h-5 text-[#F28C38] animate-pulse" />
-                      {slot.status === "queued" ? "Queued" : "Claude is drawing…"}
+                      {slot.status === "queued" ? "Queued" : "Gemini is drawing…"}
                     </div>
                   )}
                 </div>
@@ -527,7 +527,7 @@ export const StickerPackView: React.FC<StickerPackViewProps> = ({
         <div className="space-y-3">
           {pages.length === 0 ? (
             <div className="aspect-[210/297] rounded-lg border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-500 text-center p-6">
-              {busy ? "Stickers appear here as Claude finishes them…" : "Tick at least one finished sticker to print."}
+              {busy ? "Stickers appear here as Gemini finishes them…" : "Tick at least one finished sticker to print."}
             </div>
           ) : (
             pages.map((page, i) => (

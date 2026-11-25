@@ -10,12 +10,12 @@ import {
   asStyle,
   drawSticker,
   hasCredentials,
-  MODEL,
+  modelSummary,
   parseImageDataUrl,
   type CharacterSheet,
   type StickerIdea,
   MAX_STICKERS,
-} from "./server/claude";
+} from "./server/ai";
 import { registerShowcaseRoutes } from "./server/showcase";
 
 dotenv.config();
@@ -52,7 +52,7 @@ async function startServer() {
   registerShowcaseRoutes(app);
 
   app.get("/api/health", (_req: Request, res: Response) => {
-    res.json({ ok: true, hasApiKey: hasCredentials(), model: MODEL });
+    res.json({ ok: true, hasApiKey: hasCredentials(), model: modelSummary() });
   });
 
   // Step 1: Claude studies the photo -> character sheet + sticker ideas.

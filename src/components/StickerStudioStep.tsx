@@ -113,7 +113,7 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
       if (!res.ok || !data.avatarDataUrl) {
         setAvatarMessage(
           data.error ||
-            "Claude avatar unavailable — using free instant style filter."
+            "Gemini avatar unavailable — using free instant style filter."
         );
         return;
       }
@@ -261,11 +261,11 @@ export const StickerStudioStep: React.FC<StickerStudioStepProps> = ({
                   disabled={avatarLoading}
                   onClick={handleGenerateAvatar}
                   className="min-h-[34px] px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-[11px] font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60 flex items-center gap-1 whitespace-nowrap cursor-pointer"
-                  title="Claude draws a vector cartoon portrait from this photo"
+                  title="Gemini draws a vector cartoon portrait from this photo"
                 >
                   <Sparkles className="w-3 h-3 text-[#F28C38]" />
                   <span>
-                    {avatarLoading ? "Generating..." : "Claude AI Avatar"}
+                    {avatarLoading ? "Generating..." : "Gemini AI Avatar"}
                   </span>
                 </button>
               </div>

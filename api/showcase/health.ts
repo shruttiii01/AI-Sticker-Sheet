@@ -1,4 +1,4 @@
-import { hasCredentials, MODEL } from "../../server/claude.js";
+import { hasCredentials, modelSummary } from "../../server/ai.js";
 import { getImageModel, hasGemini } from "../../server/gemini.js";
 
 // Vercel function: which AI engines this deployment can use.
@@ -13,7 +13,7 @@ export default async function handler(_req: unknown, res: ApiRes) {
   res.status(200).json({
     ok: true,
     claude: hasCredentials(),
-    model: MODEL,
+    model: modelSummary(),
     gemini,
     geminiModel: gemini ? await getImageModel() : null,
     backupStickers: 0,

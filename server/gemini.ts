@@ -1,26 +1,21 @@
-import { ApiError, GoogleGenAI } from '@google/genai';
-import { STYLE_GUIDE, StickerError, type CharacterSheet, type StickerIdea, type StickerStyle } from './claude.js';
+import { ApiError } from '@google/genai';
+import { TtlCache, hashKey } from './cache.js';
+import { STYLE_GUIDE, StickerError, getGenAI, hasCredentials, type CharacterSheet, type StickerIdea, type StickerStyle } from './ai.js';
 
 /**
  * Gemini sticker painter.
  *
- * Claude studies the photo and plans the pack (see claude.ts); Gemini paints each
+ * A Gemini text model plans the pack (see ai.ts); a Gemini image model paints each
  * sticker as a full-colour raster illustration in the DYP AI CoE look. The browser
  * removes the plain background and frames it as a die-cut #DYPAICoE sticker.
  */
 
 type ImagePart = { media_type: string; data: string };
 
-let client: GoogleGenAI | null = null;
-export function hasGemini(): boolean {
-  const k = process.env.GEMINI_API_KEY;
-  return Boolean(k && k !== 'MY_GEMINI_API_KEY');
-}
-function getClient(): GoogleGenAI {
-  if (!hasGemini()) throw new StickerError('GEMINI_API_KEY is not set. Run ./scripts/set-api-key.sh GEMINI_API_KEY and restart.', 503);
-  client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  return client;
-}
+export const hasGemini = hasCredentials;
+const getClient = getGenAI;
+/** Painted stickers are by far the priciest call, so identical requests are served from memory. */
+const paintCache = new TtlCache<{ dataUrl: string; model: string }>(60, 6 * 3_600_000);
 
 /* ---------------- model selection ---------------- */
 let resolvedModel: string | null = process.env.GEMINI_IMAGE_MODEL || null;
@@ -88,6 +83,15 @@ function buildPrompt(character: CharacterSheet, idea: StickerIdea, style: Sticke
 }
 
 export async function paintSticker(
+  image: ImagePart | null,
+  character: CharacterSheet,
+  idea: StickerIdea,
+  style: StickerStyle,
+): Promise<{ dataUrl: string; model: string }> {
+  return paintCache.wrap(hashKey('paint', image?.data ?? '', character, idea, style), () => paint(image, character, idea, style));
+}
+
+async function paint(
   image: ImagePart | null,
   character: CharacterSheet,
   idea: StickerIdea,

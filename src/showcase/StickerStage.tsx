@@ -15,6 +15,7 @@ import {
   Printer,
   RefreshCw,
   Send,
+  Smartphone,
   Sparkles,
   Upload,
   UserPlus,
@@ -31,6 +32,7 @@ import {
   type PlacedSticker,
 } from '../utils/stickerPack';
 import { removePlainBackground, rasterToSvg } from './raster';
+import StickerMockups, { StickerRoomStrip } from './StickerMockups';
 import { BrandMark, Eyebrow, GOLD, SAFFRON, TiltCard, Words, ease, sfx, toggleFullscreen, useHealth } from './ui';
 
 const STYLES = [
@@ -61,8 +63,8 @@ interface Idea {
 type SlotStatus = 'queued' | 'drawing' | 'done' | 'error';
 type Engine = 'gemini' | 'claude';
 type EngineMode = Engine | 'duel';
-const ENGINE_LABEL: Record<Engine, string> = { gemini: 'Gemini', claude: 'Claude' };
-const ENGINE_VERB: Record<EngineMode, string> = { gemini: 'Gemini is painting', claude: 'Claude is drawing', duel: 'Claude and Gemini are drawing' };
+const ENGINE_LABEL: Record<Engine, string> = { gemini: 'Gemini', claude: 'Gemini vector' };
+const ENGINE_VERB: Record<EngineMode, string> = { gemini: 'Gemini is painting', claude: 'Gemini is drawing', duel: 'Gemini vector and paint are drawing' };
 interface Slot {
   idea: Idea;
   engine: Engine;
@@ -77,7 +79,7 @@ type Character = Record<string, string>;
 type Phase = 'setup' | 'camera' | 'scan' | 'reveal';
 const engineFor = (mode: EngineMode, i: number): Engine => (mode === 'duel' ? (i % 2 === 0 ? 'gemini' : 'claude') : mode);
 
-/** Gemini returns a painted PNG: strip its plain background, then frame it like Claude's vector art. */
+/** Gemini returns a painted PNG: strip its plain background, then frame it like Gemini's vector art. */
 async function artToSticker(art: { svg?: string; img?: string }, caption: string): Promise<string> {
   const svg = art.svg ?? rasterToSvg(await removePlainBackground(art.img!));
   return svgToDieCutPng(svg, 1200, '#DYPAICoE', caption);
@@ -145,6 +147,7 @@ const Setup: React.FC<{
   setWallOptIn: (b: boolean) => void;
   onGo: () => void;
   onBackup: () => void;
+  onRoom: () => void;
   backupCount: number;
   claudeOk: boolean | null;
   geminiOk: boolean;
@@ -152,7 +155,7 @@ const Setup: React.FC<{
   setEngine: (e: EngineMode) => void;
 }> = (p) => (
   <div className="min-h-screen flex flex-col justify-center px-[6vw] pt-24 pb-16 max-w-[1500px] mx-auto">
-    <Eyebrow>AI Sticker Studio · {p.geminiOk ? 'Claude + Gemini' : 'Claude'}</Eyebrow>
+    <Eyebrow>AI Sticker Studio · {p.geminiOk ? 'Gemini' : 'Gemini'}</Eyebrow>
     <h1 className="mt-4 font-display font-bold text-white leading-[1.02] text-[clamp(44px,7vw,120px)]">
       <Words text="Smile once." delay={0.15} />
       <br />
@@ -165,13 +168,13 @@ const Setup: React.FC<{
       className="mt-5 text-white/60 text-[clamp(15px,1.5vw,24px)] max-w-[60ch]"
     >
       {p.geminiOk
-        ? 'Claude studies your photo and invents sticker ideas about you. Gemini paints each one in DYP AI CoE colours, live, in seconds.'
-        : 'Claude looks at your photo, invents sticker ideas about you, and hand-draws every single one as vector art, live, in about 30 seconds.'}
+        ? 'Gemini studies your photo and invents sticker ideas about you. Gemini paints each one in DYP AI CoE colours, live, in seconds.'
+        : 'Gemini looks at your photo, invents sticker ideas about you, and hand-draws every single one as vector art, live, in about 30 seconds.'}
     </motion.p>
 
     {p.claudeOk === false && (
       <div className="mt-6 flex items-center gap-2 text-amber-200 bg-amber-500/10 border border-amber-400/30 rounded-2xl px-4 py-3 max-w-2xl">
-        <AlertTriangle className="w-5 h-5 shrink-0" /> Claude isn't connected (no ANTHROPIC_API_KEY on the server). Use the backup pack to demo.
+        <AlertTriangle className="w-5 h-5 shrink-0" /> Gemini isn't connected (no GEMINI_API_KEY on the server). Use the backup pack to demo.
       </div>
     )}
 
@@ -219,7 +222,7 @@ const Setup: React.FC<{
             {(
               [
                 ['gemini', 'Gemini paints', 'Rich full-colour illustration'],
-                ['claude', 'Claude draws', 'Crisp vector art'],
+                ['claude', 'Gemini draws', 'Crisp vector art'],
                 ['duel', 'AI duel', 'Half each, side by side'],
               ] as [EngineMode, string, string][]
             ).map(([id, label, hint]) => {
@@ -278,13 +281,16 @@ const Setup: React.FC<{
         </div>
         <label className="flex items-start gap-2.5 text-sm text-white/80 cursor-pointer max-w-md">
           <input type="checkbox" checked={p.consent} onChange={(e) => p.setConsent(e.target.checked)} className="mt-1 w-4 h-4 accent-[#F2B33D]" />
-          {p.engine === 'claude' ? "The person in the photo agrees to it being sent to Anthropic's Claude API to make their stickers." : "The person in the photo agrees to it being sent to Anthropic's Claude API and Google's Gemini API to make their stickers."}
+          {p.engine === 'claude' ? "The person in the photo agrees to it being sent to Google's Gemini API to make their stickers." : "The person in the photo agrees to it being sent to Google's Gemini API to make their stickers."}
         </label>
         <label className="flex items-start gap-2.5 text-sm text-white/80 cursor-pointer max-w-xs">
           <input type="checkbox" checked={p.wallOptIn} onChange={(e) => p.setWallOptIn(e.target.checked)} className="mt-1 w-4 h-4 accent-[#F2B33D]" />
           Show my stickers on the live wall
         </label>
         <div className="ml-auto flex items-center gap-3">
+          <button type="button" onClick={p.onRoom} title="Preview the sticker room with sample stickers (M)" className="flex items-center gap-1.5 text-white/45 hover:text-white text-sm cursor-pointer">
+            <Smartphone className="w-4 h-4" /> Sticker room
+          </button>
           {p.backupCount > 0 && (
             <button type="button" onClick={p.onBackup} title="Replay the last drawings (B)" className="flex items-center gap-1.5 text-white/45 hover:text-white text-sm cursor-pointer">
               <History className="w-4 h-4" /> Backup pack
@@ -515,7 +521,7 @@ const ScanView: React.FC<{ photo: string; character: Character | null; ideas: Id
       </div>
 
       <div>
-        <Eyebrow>Claude is looking at you</Eyebrow>
+        <Eyebrow>Gemini is looking at you</Eyebrow>
         {error ? (
           <div className="mt-6 space-y-4">
             <div className="flex gap-3 text-red-200 bg-red-500/10 border border-red-400/30 rounded-2xl p-5 text-lg">
@@ -595,7 +601,7 @@ const StickerCard: React.FC<{ slot: Slot; index: number; onRedraw: () => void }>
     prev.current = slot.status;
   }, [slot.status]);
   return (
-    <motion.div ref={ref} initial={{ opacity: 0, y: 40, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: index * 0.08, ease, duration: 0.7 }}>
+    <motion.div ref={ref} layout initial={{ opacity: 0, y: 40, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: index * 0.08, ease, duration: 0.7, layout: { duration: 1, ease } }}>
       <TiltCard max={12} className="rounded-[1.75rem] aspect-square">
         <AnimatePresence mode="wait" initial={false}>
           {slot.status === 'done' && slot.png ? (
@@ -642,7 +648,7 @@ const StickerCard: React.FC<{ slot: Slot; index: number; onRedraw: () => void }>
                 <p className="mt-3 text-xs tracking-widest uppercase text-white/50">
                   {slot.status === 'drawing' && slot.startedAt ? (
                     <>
-                      {slot.engine === 'gemini' ? 'Gemini is painting' : 'Claude is drawing'} · <span className="tabular-nums" style={{ color: GOLD }}><Elapsed since={slot.startedAt} /></span>
+                      {slot.engine === 'gemini' ? 'Gemini is painting' : 'Gemini is drawing'} · <span className="tabular-nums" style={{ color: GOLD }}><Elapsed since={slot.startedAt} /></span>
                     </>
                   ) : (
                     'Queued'
@@ -788,6 +794,10 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   const [slots, setSlots] = useState<Slot[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showPrint, setShowPrint] = useState(false);
+  const [showRoom, setShowRoom] = useState(false);
+  const [roomFocus, setRoomFocus] = useState<string | null>(null);
+  // Once the pack is complete: hold the big stickers for a moment, then shrink them and bring in the sticker room below.
+  const [compact, setCompact] = useState(false);
   const [posted, setPosted] = useState(false);
   const [isBackup, setIsBackup] = useState(false);
   const [engine, setEngine] = useState<EngineMode>('claude');
@@ -825,6 +835,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
     async (img: string) => {
       const run = ++runId.current;
       celebrated.current = false;
+      setCompact(false);
       setPosted(false);
       setIsBackup(false);
       setError(null);
@@ -853,6 +864,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   const playBackup = useCallback(async () => {
     const run = ++runId.current;
     celebrated.current = false;
+    setCompact(false);
     setPosted(false);
     setIsBackup(true);
     setError(null);
@@ -891,6 +903,13 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
     }
   }, [phase, allDone, done.length]);
 
+  // 3 seconds with the finished stickers centre-stage, then zoom out into the sticker room.
+  useEffect(() => {
+    if (phase !== 'reveal' || !allDone || !done.length || compact) return;
+    const t = setTimeout(() => setCompact(true), 3000);
+    return () => clearTimeout(t);
+  }, [phase, allDone, done.length, compact]);
+
   const postToWall = useCallback(async () => {
     if (posted || isBackup) return;
     setPosted(true);
@@ -917,6 +936,9 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
     setConsent(false);
     setError(null);
     setShowPrint(false);
+    setShowRoom(false);
+    setRoomFocus(null);
+    setCompact(false);
     setPhase('setup');
   };
 
@@ -925,7 +947,9 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
       if (e.key.toLowerCase() === 'b' && phase === 'setup' && (health?.backupStickers ?? 0) > 0) void playBackup();
+      if (showRoom) return; // the sticker room has its own keys
       if (e.key.toLowerCase() === 'p' && phase === 'reveal' && done.length) setShowPrint(true);
+      if (e.key.toLowerCase() === 'm' && (phase === 'setup' || (phase === 'reveal' && done.length))) setShowRoom(true);
       if (e.key.toLowerCase() === 'n' && phase === 'reveal') nextPerson();
       if (e.key === 'Escape') setShowPrint(false);
     };
@@ -983,6 +1007,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
               {...{ name, setName, style, setStyle, vibe, setVibe, count, setCount, consent, setConsent, wallOptIn, setWallOptIn }}
               onGo={() => setPhase('camera')}
               onBackup={() => void playBackup()}
+              onRoom={() => setShowRoom(true)}
               backupCount={health?.backupStickers ?? 0}
               claudeOk={health ? health.claude : null}
               geminiOk={Boolean(health?.gemini)}
@@ -1007,23 +1032,23 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
             <ScanView photo={photo} character={character} ideas={ideas} error={error} onRetry={() => void generate(photo)} onBack={() => setPhase('camera')} />
           )}
           {phase === 'reveal' && (
-            <div className="min-h-screen px-[5vw] pt-20 pb-28 max-w-[1800px] mx-auto">
+            <div className={`px-[5vw] max-w-[1800px] mx-auto ${compact ? 'h-screen overflow-hidden pt-16 pb-24' : 'min-h-screen pt-20 pb-28'}`}>
               <div className="flex flex-wrap items-end justify-between gap-6">
-                <div>
+                <motion.div layout transition={{ duration: 0.9, ease }}>
                   <Eyebrow>{allDone ? 'Your pack is ready' : `${ENGINE_VERB[engine]} ${slots.length} stickers in parallel`}</Eyebrow>
-                  <h1 className="mt-3 font-display font-bold text-white leading-[1.05] text-[clamp(36px,5vw,84px)]">
+                  <h1 className={`mt-3 font-display font-bold text-white leading-[1.05] transition-all duration-700 ${compact ? 'text-[clamp(24px,3vw,48px)]' : 'text-[clamp(36px,5vw,84px)]'}`}>
                     {allDone ? (
                       <Words text={`${name.trim() || 'You'}, meet your sticker pack.`} gold={['sticker', 'pack.']} />
                     ) : (
                       <Words
-                        text={engine === 'duel' ? 'Claude vs Gemini, right now.' : engine === 'gemini' ? 'Planned by Claude, painted by Gemini.' : 'Hand-drawn by AI, right now.'}
+                        text={engine === 'duel' ? 'Gemini vector vs Gemini paint, right now.' : engine === 'gemini' ? 'Planned by Gemini, painted by Gemini.' : 'Hand-drawn by AI, right now.'}
                         gold={engine === 'duel' ? ['right', 'now.'] : engine === 'gemini' ? ['painted', 'gemini.'] : ['right', 'now.']}
                       />
                     )}
                   </h1>
-                </div>
+                </motion.div>
                 <div className="flex items-center gap-4">
-                  {photo && <img src={photo} alt="" className="w-20 h-20 rounded-2xl object-cover border-2" style={{ borderColor: GOLD }} />}
+                  {photo && <img src={photo} alt="" className={`rounded-2xl object-cover border-2 transition-all duration-700 ${compact ? 'w-12 h-12' : 'w-20 h-20'}`} style={{ borderColor: GOLD }} />}
                   <div className="text-right">
                     <div className="font-display font-bold text-5xl text-white tabular-nums">
                       {done.length}
@@ -1036,16 +1061,21 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
                 </div>
               </div>
 
-              <div className="mt-6 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className={`h-1.5 rounded-full bg-white/10 overflow-hidden transition-all duration-700 ${compact ? 'mt-3' : 'mt-6'}`}>
                 <motion.div className="h-full rounded-full" style={{ background: `linear-gradient(90deg,${GOLD},${SAFFRON})` }} animate={{ width: `${(done.length / Math.max(1, slots.length)) * 100}%` }} transition={{ ease, duration: 0.8 }} />
               </div>
 
-              <div
+              <motion.div
+                layout
+                transition={{ duration: 1, ease }}
                 ref={gridRef}
-                className="mt-8 grid gap-6 justify-center"
+                className={`grid justify-center ${compact ? 'mt-3 gap-4' : 'mt-8 gap-6'}`}
                 style={{
                   // Size stickers off the screen height so they fill a projector without scrolling.
-                  gridTemplateColumns: `repeat(${slots.length > 4 ? 3 : Math.max(1, slots.length)}, minmax(0, ${slots.length > 4 ? 30 : 42}vh))`,
+                  // After the hold, they shrink to a row so the sticker room fits underneath in the same frame.
+                  gridTemplateColumns: compact
+                    ? `repeat(${Math.max(1, slots.length)}, minmax(0, 22vh))`
+                    : `repeat(${slots.length > 4 ? 3 : Math.max(1, slots.length)}, minmax(0, ${slots.length > 4 ? 30 : 42}vh))`,
                 }}
               >
                 {slots.map((slot, i) => (
@@ -1056,7 +1086,24 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
                     onRedraw={() => character && void drawOne(runId.current, i, slot.idea, character, photo, slot.engine)}
                   />
                 ))}
-              </div>
+              </motion.div>
+
+              <AnimatePresence>
+                {compact && (
+                  <motion.div
+                    key="room"
+                    initial={{ opacity: 0, y: 90 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.9, ease }}
+                    className="mt-5"
+                  >
+                    <div className="flex items-center justify-center gap-2 mb-3 text-xs font-bold uppercase tracking-[0.25em]" style={{ color: GOLD }}>
+                      <Sparkles className="w-4 h-4" /> Now stick it everywhere <span className="normal-case tracking-normal text-white/40 font-medium">· tap any object to play</span>
+                    </div>
+                    <StickerRoomStrip stickers={done.map((s) => s.png!)} onOpen={(id) => { setRoomFocus(id); setShowRoom(true); }} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           )}
       </motion.div>
@@ -1076,6 +1123,14 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
           >
             <Printer className="w-5 h-5" /> Print stickers <kbd className="text-[10px] opacity-60 border border-current rounded px-1">P</kbd>
           </button>
+          <button
+            disabled={!done.length}
+            onClick={() => { setRoomFocus(null); setShowRoom(true); }}
+            className="shimmer-btn rounded-2xl px-7 py-3.5 font-extrabold text-white flex items-center gap-2 cursor-pointer disabled:opacity-40"
+            style={{ background: 'linear-gradient(135deg,#ff2e88,#7b2ff7)' }}
+          >
+            <Smartphone className="w-5 h-5" /> Stick it everywhere <kbd className="text-[10px] opacity-70 border border-current rounded px-1">M</kbd>
+          </button>
           {!isBackup && (
             <button
               disabled={!allDone || posted}
@@ -1094,6 +1149,17 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
         </motion.div>
       )}
 
+      <AnimatePresence>
+        {showRoom && (
+          <StickerMockups
+            stickers={phase === 'reveal' ? done.map((s) => s.png!) : []}
+            isSample={phase !== 'reveal' || !done.length}
+            name={phase === 'reveal' ? name : ''}
+            initialFocus={roomFocus}
+            onClose={() => { setShowRoom(false); setRoomFocus(null); }}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence>{showPrint && <PrintPanel stickers={done.map((s) => s.png!)} name={name} onClose={() => setShowPrint(false)} />}</AnimatePresence>
     </div>
   );

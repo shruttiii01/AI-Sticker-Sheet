@@ -39,13 +39,13 @@ function buildInsights(d: Insights): string[] {
   const c = d.counters;
   const [topStyle] = ranked(d.styles, 1);
   if (topStyle) out.push(`"${topStyle[0]}" is this room's favourite sticker style, chosen by ${pct(topStyle[1], total(d.styles))}% of people.`);
-  if (d.drawMedianMs) out.push(`Claude hand-draws a complete sticker in ${(d.drawMedianMs / 1000).toFixed(0)} seconds, typically. A human illustrator needs about an hour.`);
+  if (d.drawMedianMs) out.push(`Gemini hand-draws a complete sticker in ${(d.drawMedianMs / 1000).toFixed(0)} seconds, typically. A human illustrator needs about an hour.`);
   if (c.stickersDrawn) out.push(`${c.stickersDrawn} original illustrations so far: roughly ${c.stickersDrawn} hours of human design work, done live.`);
   const em = d.engineMedianMs ?? {};
   if (em.Gemini && em.Claude) {
-    const fast = em.Gemini < em.Claude ? 'Gemini' : 'Claude';
-    out.push(`AI duel: Gemini paints a sticker in ${(em.Gemini / 1000).toFixed(0)}s, Claude hand-codes one in ${(em.Claude / 1000).toFixed(0)}s. ${fast} is faster today.`);
-  } else if (em.Gemini) out.push(`Claude plans every pack, Gemini paints it: a finished illustration every ${(em.Gemini / 1000).toFixed(0)} seconds.`);
+    const fast = em.Gemini < em.Claude ? 'Gemini paint' : 'Gemini vector';
+    out.push(`AI duel: Gemini paints a sticker in ${(em.Gemini / 1000).toFixed(0)}s, vector mode draws one in ${(em.Claude / 1000).toFixed(0)}s. ${fast} is faster today.`);
+  } else if (em.Gemini) out.push(`Gemini plans every pack and paints it: a finished illustration every ${(em.Gemini / 1000).toFixed(0)} seconds.`);
   const [topVibe] = ranked(d.vibes, 1);
   if (topVibe) out.push(`"${topVibe[0]}" is the pack theme this room picks most (${pct(topVibe[1], total(d.vibes))}%).`);
   if (c.stickerSessions > 1) out.push(`${c.stickerSessions} people have become stickers so far. Who's next?`);
@@ -182,7 +182,7 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
       <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
         <Kpi i={0} label="People captured" value={c?.stickerSessions ?? 0} />
         <Kpi i={1} label="Design hours saved" value={c?.stickersDrawn ?? 0} />
-        <Kpi i={2} label="Stickers drawn by Claude" value={c?.stickersDrawn ?? 0} accent />
+        <Kpi i={2} label="Stickers drawn by Gemini" value={c?.stickersDrawn ?? 0} accent />
         <Kpi i={3} label="Median draw time (s)" value={(d?.drawMedianMs ?? 0) / 1000} decimals={1} />
         <Kpi i={4} label="On the live wall" value={c?.wallPosts ?? 0} />
       </div>

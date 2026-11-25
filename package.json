@@ -13,8 +13,8 @@
     "showcase": "vite build && NODE_ENV=production tsx server.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.9.0",
     "@google/genai": "^3.6.1",
+    "@netlify/blobs": "^11.1.11",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
     "canvas-confetti": "^1.9.4",

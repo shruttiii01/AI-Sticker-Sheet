@@ -24,8 +24,11 @@ import {
 import { captureVideoFrameAsSquare, processUploadedImageAsSquare } from '../utils/image';
 import {
   A4,
+  PRINT_BOOSTS,
   STICKER_USE_CASES,
   downloadDataUrl,
+  enhanceForPrint,
+  type PrintBoost,
   packStickers,
   renderPackPageToPng,
   svgToDieCutPng,
@@ -734,8 +737,36 @@ export const PrintPanel: React.FC<{ stickers: string[]; name: string; onClose: (
   const [useCaseId, setUseCaseId] = useState('mixed');
   const [copies, setCopies] = useState(1);
   const [printing, setPrinting] = useState<PlacedSticker[][] | null>(null);
+  const [boost, setBoost] = useState<PrintBoost>(() => {
+    try {
+      return (localStorage.getItem('print-boost') as PrintBoost) || 'vivid';
+    } catch {
+      return 'vivid';
+    }
+  });
+  const [boosted, setBoosted] = useState<string[] | null>(null);
   const useCase = STICKER_USE_CASES.find((u) => u.id === useCaseId) ?? STICKER_USE_CASES[0];
-  const pages = useMemo(() => packStickers(stickers, useCase, copies), [stickers, useCase, copies]);
+  // callers pass a fresh array each render; key on the contents so the boost runs once per pack
+  const stickersKey = stickers.length + ':' + stickers.map((x) => x.length + x.slice(-24)).join('|');
+  const stickersRef = useRef(stickers);
+  stickersRef.current = stickers;
+  useEffect(() => {
+    let alive = true;
+    const stickers = stickersRef.current;
+    setBoosted(null);
+    try {
+      localStorage.setItem('print-boost', boost);
+    } catch {
+      /* ignore */
+    }
+    Promise.all(stickers.map((s) => enhanceForPrint(s, boost))).then((out) => alive && setBoosted(out));
+    return () => {
+      alive = false;
+    };
+  }, [stickersKey, boost]);
+  // Print and PNG use the colour-boosted art; preview shows exactly what will print.
+  const art = boosted ?? stickers;
+  const pages = useMemo(() => packStickers(art, useCase, copies), [art, useCase, copies]);
 
   const print = () => {
     setPrinting(pages);
@@ -782,6 +813,21 @@ export const PrintPanel: React.FC<{ stickers: string[]; name: string; onClose: (
               </button>
             ))}
           </div>
+          <div>
+            <div className="text-white/70 text-sm mb-2">Print colour <span className="text-white/40">· sticker paper prints paler than the screen</span></div>
+            <div className="grid grid-cols-3 gap-2">
+              {PRINT_BOOSTS.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => setBoost(b.id)}
+                  className={`text-left rounded-xl px-3 py-2 border cursor-pointer transition ${boost === b.id ? 'border-[#F2B33D] bg-[#F2B33D]/15' : 'border-white/15 hover:border-white/40'}`}
+                >
+                  <span className="block font-bold text-white text-sm">{b.label}</span>
+                  <span className="block text-[11px] text-white/50">{b.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex items-center gap-2 text-white/70 text-sm">
             Copies of each
             {[1, 2, 3].map((n) => (
@@ -791,14 +837,18 @@ export const PrintPanel: React.FC<{ stickers: string[]; name: string; onClose: (
             ))}
           </div>
           <div className="flex flex-wrap gap-3 pt-2">
-            <button onClick={print} className="shimmer-btn rounded-2xl px-6 py-3.5 font-extrabold text-[#0b1f4b] flex items-center gap-2 cursor-pointer" style={{ background: `linear-gradient(135deg,${GOLD},#ffd37a)` }}>
+            <button onClick={print} disabled={!boosted} className="disabled:opacity-50 shimmer-btn rounded-2xl px-6 py-3.5 font-extrabold text-[#0b1f4b] flex items-center gap-2 cursor-pointer" style={{ background: `linear-gradient(135deg,${GOLD},#ffd37a)` }}>
               <Printer className="w-5 h-5" /> Print {pages.length > 1 ? `${pages.length} pages` : 'A4 sheet'}
             </button>
             <button onClick={() => void download()} className="rounded-2xl px-5 py-3.5 font-semibold text-white glass flex items-center gap-2 cursor-pointer">
               <Download className="w-5 h-5" /> 300 dpi PNG
             </button>
           </div>
-          <p className="text-white/45 text-xs">A4 sticker / vinyl paper · scale 100% (Actual size) · margins None.</p>
+          <p className="text-white/45 text-xs leading-relaxed">
+            A4 sticker / vinyl paper · scale 100% (Actual size) · margins None.
+            <br />
+            In the print dialog: tick <b className="text-white/70">Background graphics</b>, set quality to <b className="text-white/70">High / Best</b> and paper type to <b className="text-white/70">Glossy / Photo</b>. Plain-paper mode prints pale.
+          </p>
         </div>
         <div className="space-y-3">
           {pages.map((pg, i) => (

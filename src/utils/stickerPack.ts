@@ -500,3 +500,69 @@ export function downloadDataUrl(url: string, filename: string) {
   link.click();
   link.remove();
 }
+
+/* ---------------- Print colour boost ----------------
+ * Sticker paper soaks up ink and printers render screen colours (sRGB) duller than a monitor,
+ * so stickers come out pale. Before printing we deepen midtones, add contrast and saturation.
+ * Pure white (the die-cut border) stays white; transparent pixels are untouched.
+ */
+export type PrintBoost = "off" | "vivid" | "extra";
+export const PRINT_BOOSTS: { id: PrintBoost; label: string; hint: string }[] = [
+  { id: "off", label: "Original", hint: "Screen colours" },
+  { id: "vivid", label: "Vivid", hint: "Best for most sticker paper" },
+  { id: "extra", label: "Extra vivid", hint: "If prints still look pale" },
+];
+const BOOST_PARAMS: Record<Exclude<PrintBoost, "off">, { gamma: number; contrast: number; saturation: number }> = {
+  vivid: { gamma: 1.15, contrast: 1.12, saturation: 1.35 },
+  extra: { gamma: 1.3, contrast: 1.2, saturation: 1.6 },
+};
+const boostCache = new Map<string, Promise<string>>();
+
+export function enhanceForPrint(src: string, boost: PrintBoost): Promise<string> {
+  if (boost === "off") return Promise.resolve(src);
+  const key = `${boost}|${src}`;
+  let job = boostCache.get(key);
+  if (!job) {
+    job = (async () => {
+      const img = await loadImage(src);
+      // upscale small images (e.g. older wall thumbnails) so the print isn't blocky
+      const scale = Math.max(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return src;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h);
+      const px = data.data;
+      const { gamma, contrast, saturation } = BOOST_PARAMS[boost];
+      // lookup table for gamma + contrast on each channel
+      const lut = new Uint8ClampedArray(256);
+      // contrast around mid-grey, but eased above 80% so light card tints don't bleach to white
+      const knee = 0.8;
+      const kneeOut = (knee - 0.5) * contrast + 0.5;
+      for (let i = 0; i < 256; i++) {
+        let v = Math.pow(i / 255, gamma);
+        v = v <= knee ? (v - 0.5) * contrast + 0.5 : kneeOut + ((v - knee) * (1 - kneeOut)) / (1 - knee);
+        lut[i] = Math.round(Math.min(1, Math.max(0, v)) * 255);
+      }
+      for (let i = 0; i < px.length; i += 4) {
+        if (px[i + 3] === 0) continue;
+        const r0 = px[i], g0 = px[i + 1], b0 = px[i + 2];
+        if (r0 > 248 && g0 > 248 && b0 > 248) continue; // keep the white die-cut border clean
+        const r = lut[r0], g = lut[g0], b = lut[b0];
+        const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        px[i] = l + (r - l) * saturation;
+        px[i + 1] = l + (g - l) * saturation;
+        px[i + 2] = l + (b - l) * saturation;
+      }
+      ctx.putImageData(data, 0, 0);
+      return canvas.toDataURL("image/png");
+    })().catch(() => src);
+    boostCache.set(key, job);
+  }
+  return job;
+}

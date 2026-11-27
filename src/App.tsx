@@ -381,7 +381,7 @@ export default function App() {
               Dr. D. Y. Patil B-School, Pune
             </span>
             <span aria-hidden="true">·</span>
-            <span>{stickerTag.trim() || "#DYPAICoE"} Launch</span>
+            <span>{stickerTag.trim() || "#DYPBSAICoE"} Launch</span>
             {activeTab === "booth" && (
               <>
                 <span aria-hidden="true">·</span>

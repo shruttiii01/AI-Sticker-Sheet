@@ -82,7 +82,7 @@ const engineFor = (mode: EngineMode, i: number): Engine => (mode === 'duel' ? (i
 /** Gemini returns a painted PNG: strip its plain background, then frame it like Gemini's vector art. */
 async function artToSticker(art: { svg?: string; img?: string }, caption: string): Promise<string> {
   const svg = art.svg ?? rasterToSvg(await removePlainBackground(art.img!));
-  return svgToDieCutPng(svg, 1200, '#DYPAICoE', caption);
+  return svgToDieCutPng(svg, 1200, '#DYPBSAICoE', caption);
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -168,7 +168,7 @@ const Setup: React.FC<{
       className="mt-5 text-white/60 text-[clamp(15px,1.5vw,24px)] max-w-[60ch]"
     >
       {p.geminiOk
-        ? 'Gemini studies your photo and invents sticker ideas about you. Gemini paints each one in DYP AI CoE colours, live, in seconds.'
+        ? 'Gemini studies your photo and invents sticker ideas about you. Gemini paints each one in DYPBS AI CoE colours, live, in seconds.'
         : 'Gemini looks at your photo, invents sticker ideas about you, and hand-draws every single one as vector art, live, in about 30 seconds.'}
     </motion.p>
 
@@ -718,7 +718,7 @@ const PrintPanel: React.FC<{ stickers: string[]; name: string; onClose: () => vo
     setTimeout(() => window.print(), 120);
   };
   const download = async () => {
-    const safe = (name.trim() || 'dypai').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const safe = (name.trim() || 'dypbsai').toLowerCase().replace(/[^a-z0-9]+/g, '-');
     for (let i = 0; i < pages.length; i++) downloadDataUrl(await renderPackPageToPng(pages[i]), `${safe}-stickers-page${i + 1}.png`);
   };
 

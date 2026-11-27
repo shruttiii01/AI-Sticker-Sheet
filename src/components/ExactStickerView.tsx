@@ -86,7 +86,7 @@ interface ExactA4RendererProps {
 export const ExactA4Renderer: React.FC<ExactA4RendererProps> = ({
   copies,
   showCutGuides,
-  stickerTag = "#DYPAICoE",
+  stickerTag = "#DYPBSAICoE",
   printExact = false,
 }) => {
   const spec = EXACT_LAYOUTS[copies];

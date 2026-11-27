@@ -42,7 +42,7 @@ const Opening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           transition={{ duration: 1.4, ease }}
         />
         <div className="flex justify-center gap-[0.04em] font-display font-bold text-white text-[clamp(72px,15vw,240px)] leading-none">
-          {'DYPAI'.split('').map((l, i) => (
+          {'DYPBSAI'.split('').map((l, i) => (
             <motion.span
               key={i}
               className={i >= 3 ? 'gold-text' : ''}
@@ -64,7 +64,7 @@ const Opening: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           AI Sticker Studio
         </motion.p>
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 2.6 }} className="mt-3 text-white/45 text-[clamp(12px,1.1vw,18px)]">
-          Centre of Excellence · Dr. D. Y. Patil B-School, Pune · #DYPAICoE
+          Centre of Excellence · Dr. D. Y. Patil B-School, Pune · #DYPBSAICoE
         </motion.p>
         <motion.div
           className="mx-auto h-[2px] mt-10"
@@ -194,7 +194,7 @@ const Hub: React.FC<{ go: (r: Route) => void }> = ({ go }) => {
           <BrandMark size={46} />
           <div>
             <div className="text-white font-display font-bold text-xl leading-tight">
-              DYPAI <span style={{ color: GOLD }}>AI Sticker Studio</span>
+              DYPBSAI <span style={{ color: GOLD }}>AI Sticker Studio</span>
             </div>
             <div className="text-white/50 text-sm">Centre of Excellence · Dr. D. Y. Patil B-School, Pune</div>
           </div>

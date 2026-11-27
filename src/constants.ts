@@ -4,10 +4,10 @@ export const A4_WIDTH_MM = 210;
 export const A4_HEIGHT_MM = 297;
 export const VISITOR_TARGET_SECONDS = 150; // 2 minutes 30 seconds
 
-export const DEFAULT_STICKER_TAG = "#DYPAICoE";
+export const DEFAULT_STICKER_TAG = "#DYPBSAICoE";
 
 export const STICKER_TAG_PRESETS: string[] = [
-  "#DYPAICoE",
+  "#DYPBSAICoE",
   "#DYPCOE",
   "#DYPBS",
 ];
@@ -78,7 +78,7 @@ export const DEFAULT_CAPTIONS: string[] = [
   "Chai Break",
   "Deadline Hero",
   "Topper Energy",
-  "#DYPAICoE",
+  "#DYPBSAICoE",
 ];
 
 // 6 core + 9 campus B-School captions for quick swap
@@ -88,7 +88,7 @@ export const ALL_CAPTIONS: string[] = [
   "Chai Break",
   "Deadline Hero",
   "Topper Energy",
-  "#DYPAICoE",
+  "#DYPBSAICoE",
   "Case Study Pro",
   "PPT Survivor",
   "Caffeine Powered",

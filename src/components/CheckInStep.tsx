@@ -134,7 +134,7 @@ export const CheckInStep: React.FC<CheckInStepProps> = ({
                 <strong className="font-semibold text-slate-900">
                   Photo Booth Consent:
                 </strong>{" "}
-                I agree to capture my photo at the #DYPAICoE launch booth to generate and print my A4 sticker sheet. Photos stay saved on this booth browser and can be wiped anytime.
+                I agree to capture my photo at the #DYPBSAICoE launch booth to generate and print my A4 sticker sheet. Photos stay saved on this booth browser and can be wiped anytime.
               </span>
             </label>
           </div>

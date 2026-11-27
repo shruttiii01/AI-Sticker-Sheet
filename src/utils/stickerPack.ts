@@ -233,12 +233,12 @@ function drawFourPointSparkle(
  * - Soft cartoon burst backdrop + comic halftone corner dots + corner sparkle stars
  * - Centered cartoon character with crisp white sticker-pop halo
  * - Bold playful cartoon hashtag lettering below the character
- * - Consistent lower #DYPAICoE stamp badge
+ * - Consistent lower #DYPBSAICoE stamp badge
  */
 export async function svgToDieCutPng(
   svg: string,
   artPx = 1200,
-  stickerTag = "#DYPAICoE",
+  stickerTag = "#DYPBSAICoE",
   captionHashtag = "",
 ): Promise<string> {
   const img = await loadImage(svgToDataUrl(svg));

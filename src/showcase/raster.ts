@@ -1,6 +1,6 @@
 /**
  * Helpers for Gemini's raster stickers: remove the plain background so the
- * character sits on the #DYPAICoE sticker card like Gemini's vector art does.
+ * character sits on the #DYPBSAICoE sticker card like Gemini's vector art does.
  */
 
 function load(src: string): Promise<HTMLImageElement> {

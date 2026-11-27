@@ -6,8 +6,8 @@ import { STYLE_GUIDE, StickerError, getGenAI, hasCredentials, type CharacterShee
  * Gemini sticker painter.
  *
  * A Gemini text model plans the pack (see ai.ts); a Gemini image model paints each
- * sticker as a full-colour raster illustration in the DYP AI CoE look. The browser
- * removes the plain background and frames it as a die-cut #DYPAICoE sticker.
+ * sticker as a full-colour raster illustration in the DYPBS AI CoE look. The browser
+ * removes the plain background and frames it as a die-cut #DYPBSAICoE sticker.
  */
 
 type ImagePart = { media_type: string; data: string };
@@ -62,9 +62,10 @@ export const currentImageModel = () => resolvedModel;
 
 /* ---------------- painting ---------------- */
 const BRAND =
-  'This sticker is for the launch of the DYP AI Centre of Excellence (#DYPAICoE) at Dr. D. Y. Patil B-School, Pune. ' +
+  'This sticker is for the launch of the DYPBS AI Centre of Excellence (#DYPBSAICoE) at Dr. D. Y. Patil B-School, Pune. ' +
   'Use the brand palette as accents: deep navy #0b1f4b, warm gold #F2B33D and saffron #E8742A (e.g. trims on clothing, props, small sparkles), ' +
-  'with optional subtle AI / innovation motifs (glowing circuit sparkles, a tiny robot buddy, a lightbulb, a laptop) when they fit the scene.';
+  'with optional subtle AI / innovation motifs (glowing circuit sparkles, a tiny robot buddy, a lightbulb, a laptop) when they fit the scene. ' +
+  'If you add any lettering at all, the only text allowed is exactly "#DYPBSAICoE" (spelled exactly like that); never write any other brand words.';
 
 function buildPrompt(character: CharacterSheet, idea: StickerIdea, style: StickerStyle): string {
   return [

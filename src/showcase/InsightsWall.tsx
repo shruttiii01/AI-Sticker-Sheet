@@ -160,7 +160,7 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
                 <span className="relative inline-flex w-3 h-3 rounded-full bg-red-500" />
               </span>
               <h1 className="font-display font-bold text-white text-[clamp(22px,2.4vw,40px)] leading-none">
-                Live Sticker Insights <span className="gold-text">#DYPAICoE</span>
+                Live Sticker Insights <span className="gold-text">#DYPBSAICoE</span>
               </h1>
             </div>
             <p className="text-white/45 text-sm mt-1">Every sticker this room creates, as it happens</p>

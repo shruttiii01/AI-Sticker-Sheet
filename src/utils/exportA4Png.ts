@@ -183,7 +183,7 @@ export async function renderA4SheetToPng(params: {
   firstName?: string;
   stickerTag?: string;
 }): Promise<string> {
-  const { photoSrc, captions, paperConfig, stickerTag = "#DYPAICoE" } = params;
+  const { photoSrc, captions, paperConfig, stickerTag = "#DYPBSAICoE" } = params;
   const trimmedTag = stickerTag.trim();
 
   const canvas = document.createElement("canvas");

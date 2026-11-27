@@ -43,7 +43,7 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
   photoSrc,
   captions,
   paperConfig,
-  stickerTag = "#DYPAICoE",
+  stickerTag = "#DYPBSAICoE",
   selectedSlot = null,
   onSelectSlot,
   printExact = false,
@@ -277,7 +277,7 @@ export const A4SheetRenderer: React.FC<A4SheetRendererProps> = ({
               </div>
             </div>
 
-            {/* Expressive two-tone caption + marker brush highlight + lower #DYPAICoE stamp */}
+            {/* Expressive two-tone caption + marker brush highlight + lower #DYPBSAICoE stamp */}
             <div
               className="relative w-full flex flex-col items-center justify-center shrink-0"
               style={{

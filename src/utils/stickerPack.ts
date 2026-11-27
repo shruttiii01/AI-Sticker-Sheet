@@ -22,6 +22,8 @@ export const STICKER_USE_CASES: StickerUseCase[] = [
 export const A4 = { w: 210, h: 297 };
 const PAGE_MARGIN_MM = 8;
 const GAP_MM = 3;
+/** Space between two size bands on the same page. */
+const BAND_GAP_MM = 5;
 
 export interface PlacedSticker {
   src: string;
@@ -30,46 +32,92 @@ export interface PlacedSticker {
   sizeMm: number;
 }
 
-/** Shelf-pack stickers (largest first) onto as many A4 pages as needed. */
+/**
+ * Lays stickers out as straight rectangular grids that fill the whole A4 page, so a
+ * sheet can be cut apart with a ruler (every row and column lines up).
+ *
+ * - Each size gets its own band of full rows; the smallest size fills whatever height is left.
+ * - `copies` is a minimum: empty cells are filled with more stickers instead of wasting paper.
+ * - Designs are spread so no sticker sits next to (or directly under) the same design,
+ *   and every design appears as evenly as possible.
+ */
 export function packStickers(
   stickers: string[],
   useCase: StickerUseCase,
   copies: number,
 ): PlacedSticker[][] {
-  const items: { src: string; size: number }[] = [];
-  for (const size of useCase.sizesMm) {
-    for (let c = 0; c < copies; c++) {
-      for (const src of stickers) items.push({ src, size });
-    }
-  }
-  items.sort((a, b) => b.size - a.size);
+  const designs = [...new Set(stickers)].filter(Boolean);
+  if (!designs.length) return [];
+  const n = designs.length;
+  const sizes = [...useCase.sizesMm].sort((a, b) => b - a);
+  const usableW = A4.w - 2 * PAGE_MARGIN_MM;
+  const maxY = A4.h - PAGE_MARGIN_MM;
+
+  const cols = (size: number) => Math.max(1, Math.floor((usableW + GAP_MM) / (size + GAP_MM)));
+  const rowsNeeded = (size: number) => Math.max(1, Math.ceil((n * Math.max(1, copies)) / cols(size)));
 
   const pages: PlacedSticker[][] = [];
   let page: PlacedSticker[] = [];
-  let x = PAGE_MARGIN_MM;
   let y = PAGE_MARGIN_MM;
-  let rowH = 0;
-  const maxX = A4.w - PAGE_MARGIN_MM;
-  const maxY = A4.h - PAGE_MARGIN_MM;
+  let pick = 0; // round-robin counter so designs stay balanced across the sheet
+  let prevRow: string[] | null = null;
+  let prevSize = 0;
 
-  for (const it of items) {
-    if (x + it.size > maxX) {
-      x = PAGE_MARGIN_MM;
-      y += rowH + GAP_MM;
-      rowH = 0;
+  const placeRow = (size: number) => {
+    if (size !== prevSize) {
+      if (page.length) y += BAND_GAP_MM - GAP_MM; // a little extra air between size bands
+      prevRow = null;
     }
-    if (y + it.size > maxY) {
-      pages.push(page);
-      page = [];
-      x = PAGE_MARGIN_MM;
-      y = PAGE_MARGIN_MM;
-      rowH = 0;
+    const c = cols(size);
+    const rowW = c * size + (c - 1) * GAP_MM;
+    const x0 = (A4.w - rowW) / 2; // centre the grid so left/right margins match
+    const row: string[] = [];
+    for (let i = 0; i < c; i++) {
+      // next design in rotation that differs from its left and upper neighbour
+      let src = designs[pick % n];
+      for (let k = 0; k < n; k++) {
+        const cand = designs[(pick + k) % n];
+        if (n === 1 || (cand !== row[i - 1] && cand !== prevRow?.[i])) {
+          src = cand;
+          pick += k;
+          break;
+        }
+      }
+      pick++;
+      row.push(src);
+      page.push({ src, xMm: x0 + i * (size + GAP_MM), yMm: y, sizeMm: size });
     }
-    page.push({ src: it.src, xMm: x, yMm: y, sizeMm: it.size });
-    x += it.size + GAP_MM;
-    rowH = Math.max(rowH, it.size);
+    y += size + GAP_MM;
+    prevRow = row;
+    prevSize = size;
+  };
+  const fits = (size: number) => y + (size !== prevSize && page.length ? BAND_GAP_MM - GAP_MM : 0) + size <= maxY;
+
+  const smallest = sizes[sizes.length - 1];
+  const fillers = [55, 40, 30, 25, 20].filter((f) => f < smallest);
+  const needs = sizes.map(rowsNeeded);
+
+  for (let guard = 0; guard < 50 && needs.some((r) => r > 0); guard++) {
+    page = [];
+    y = PAGE_MARGIN_MM;
+    prevRow = null;
+    prevSize = 0;
+    // 1) the rows each size needs, biggest first; a size that no longer fits falls through to smaller ones
+    sizes.forEach((size, i) => {
+      while (needs[i] > 0 && fits(size)) {
+        placeRow(size);
+        needs[i]--;
+      }
+    });
+    // 2) never leave blank paper: keep adding the smallest size, then smaller filler sizes
+    for (;;) {
+      const size = [smallest, ...fillers].find(fits);
+      if (!size) break;
+      placeRow(size);
+    }
+    if (!page.length) break;
+    pages.push(page);
   }
-  if (page.length) pages.push(page);
   return pages;
 }
 
@@ -425,7 +473,21 @@ export async function renderPackPageToPng(page: PlacedSticker[], dpi = 300): Pro
     }
     ctx.drawImage(img, p.xMm * pxPerMm, p.yMm * pxPerMm, p.sizeMm * pxPerMm, p.sizeMm * pxPerMm);
   }
+  drawCutGuides(ctx, page, pxPerMm);
   return canvas.toDataURL("image/png");
+}
+
+/** Light dashed cut box around every grid cell, so the sheet cuts apart with a ruler. */
+function drawCutGuides(ctx: CanvasRenderingContext2D, page: PlacedSticker[], pxPerMm: number) {
+  ctx.save();
+  ctx.strokeStyle = "#c7ccd6";
+  ctx.lineWidth = Math.max(1, 0.15 * pxPerMm);
+  ctx.setLineDash([1.2 * pxPerMm, 1.2 * pxPerMm]);
+  for (const p of page) {
+    const g = GAP_MM / 2;
+    ctx.strokeRect((p.xMm - g) * pxPerMm, (p.yMm - g) * pxPerMm, (p.sizeMm + 2 * g) * pxPerMm, (p.sizeMm + 2 * g) * pxPerMm);
+  }
+  ctx.restore();
 }
 
 export function downloadDataUrl(url: string, filename: string) {

@@ -75,7 +75,7 @@ export const modelSummary = () => (tierModels ? `${tierModels.small} -> ${tierMo
 export const MODEL = "auto";
 
 /** Hard cap on stickers per pack (enforced server-side for every route). */
-export const MAX_STICKERS = 3;
+export const MAX_STICKERS = 6;
 
 export const STICKER_STYLES = [
   "Cute caricature",
@@ -384,7 +384,7 @@ export async function analyzePerson(
       systemInstruction: ANALYZE_SYSTEM,
       responseMimeType: "application/json",
       responseJsonSchema: ANALYSIS_SCHEMA as unknown as Record<string, unknown>,
-      maxOutputTokens: 2000, // schema output is ~500 tokens; no 8k headroom needed
+      maxOutputTokens: 3000, // up to 6 ideas (~1k tokens); no 8k headroom needed
       temperature: 0.7,
     };
     // SLM first with thinking off; the medium model only runs if the small one's JSON fails validation

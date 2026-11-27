@@ -83,19 +83,31 @@ export const PackSheet: React.FC<{ page: PlacedSticker[]; printExact?: boolean }
     }
   >
     {page.map((p, i) => (
-      <img
-        key={i}
-        src={p.src}
-        alt=""
-        className="absolute"
-        style={{
-          left: `${(p.xMm / A4.w) * 100}%`,
-          top: `${(p.yMm / A4.h) * 100}%`,
-          width: `${(p.sizeMm / A4.w) * 100}%`,
-          height: `${(p.sizeMm / A4.h) * 100}%`,
-          objectFit: "contain",
-        }}
-      />
+      <React.Fragment key={i}>
+        {/* dashed cut box through the middle of the gap: every row/column lines up for ruler cuts */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            left: `${((p.xMm - 1.5) / A4.w) * 100}%`,
+            top: `${((p.yMm - 1.5) / A4.h) * 100}%`,
+            width: `${((p.sizeMm + 3) / A4.w) * 100}%`,
+            height: `${((p.sizeMm + 3) / A4.h) * 100}%`,
+            border: "0.2mm dashed #c7ccd6",
+          }}
+        />
+        <img
+          src={p.src}
+          alt=""
+          className="absolute"
+          style={{
+            left: `${(p.xMm / A4.w) * 100}%`,
+            top: `${(p.yMm / A4.h) * 100}%`,
+            width: `${(p.sizeMm / A4.w) * 100}%`,
+            height: `${(p.sizeMm / A4.h) * 100}%`,
+            objectFit: "contain",
+          }}
+        />
+      </React.Fragment>
     ))}
   </div>
 );

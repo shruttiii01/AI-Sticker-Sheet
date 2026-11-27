@@ -96,14 +96,14 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data;
 }
 
-async function thumbnail(png: string, size = 360): Promise<string> {
+async function thumbnail(png: string, size = 360, quality = 0.85): Promise<string> {
   const img = new Image();
   img.src = png;
   await img.decode();
   const c = document.createElement('canvas');
   c.width = c.height = size;
   c.getContext('2d')!.drawImage(img, 0, 0, size, size);
-  return c.toDataURL('image/webp', 0.85);
+  return c.toDataURL('image/webp', quality);
 }
 
 function burstAt(el: Element | null, big = false) {
@@ -146,6 +146,7 @@ const Setup: React.FC<{
   wallOptIn: boolean;
   setWallOptIn: (b: boolean) => void;
   onGo: () => void;
+  onUpload: (file: File) => void;
   onBackup: () => void;
   onRoom: () => void;
   backupCount: number;
@@ -296,6 +297,23 @@ const Setup: React.FC<{
               <History className="w-4 h-4" /> Backup pack
             </button>
           )}
+          <label
+            title="Make stickers from a photo on this device"
+            className={`rounded-2xl px-6 py-4 text-lg font-bold text-white glass flex items-center gap-2 transition ${p.consent ? 'cursor-pointer hover:scale-[1.03]' : 'opacity-35 cursor-not-allowed'}`}
+          >
+            <Upload className="w-5 h-5" /> Upload photo
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={!p.consent}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) p.onUpload(f);
+              }}
+            />
+          </label>
           <button
             type="button"
             disabled={!p.consent}
@@ -390,6 +408,13 @@ const CameraView: React.FC<{ name: string; onPhoto: (url: string) => void; onBac
             <div>
               <Camera className="w-12 h-12 mx-auto text-white/40" />
               <p className="mt-3 text-white/70">{err}</p>
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="mt-5 rounded-2xl px-6 py-3 font-extrabold text-[#0b1f4b] inline-flex items-center gap-2 cursor-pointer"
+                style={{ background: `linear-gradient(135deg,${GOLD},#ffd37a)` }}
+              >
+                <Upload className="w-5 h-5" /> Upload a photo
+              </button>
             </div>
           </div>
         )}
@@ -442,8 +467,8 @@ const CameraView: React.FC<{ name: string; onPhoto: (url: string) => void; onBac
           <motion.span className="absolute inset-0 rounded-full border-2" style={{ borderColor: GOLD }} animate={{ scale: [1, 1.25], opacity: [0.8, 0] }} transition={{ duration: 1.6, repeat: Infinity }} />
           <Camera className="w-8 h-8 text-[#0b1f4b]" />
         </motion.button>
-        <button onClick={() => fileRef.current?.click()} className="p-4 rounded-full glass text-white cursor-pointer" title="Upload a photo">
-          <Upload className="w-5 h-5" />
+        <button onClick={() => fileRef.current?.click()} className="px-5 py-4 rounded-full glass text-white font-semibold flex items-center gap-2 cursor-pointer" title="Upload a photo instead">
+          <Upload className="w-5 h-5" /> Upload photo
         </button>
         <input
           ref={fileRef}
@@ -452,11 +477,17 @@ const CameraView: React.FC<{ name: string; onPhoto: (url: string) => void; onBac
           className="hidden"
           onChange={async (e) => {
             const f = e.target.files?.[0];
-            if (f) onPhoto(await processUploadedImageAsSquare(f));
+            e.target.value = '';
+            if (!f) return;
+            try {
+              onPhoto(await processUploadedImageAsSquare(f));
+            } catch (er) {
+              setErr(er instanceof Error ? er.message : 'Could not read that photo. Try a JPG or PNG.');
+            }
           }}
         />
       </div>
-      <p className="mt-4 text-white/35 text-xs tracking-widest uppercase">Space to snap · 3-second timer</p>
+      <p className="mt-4 text-white/35 text-xs tracking-widest uppercase">Space to snap · 3-second timer · or upload a photo</p>
     </div>
   );
 };
@@ -699,7 +730,7 @@ const PackSheet: React.FC<{ page: PlacedSticker[]; exact?: boolean }> = ({ page,
   </div>
 );
 
-const PrintPanel: React.FC<{ stickers: string[]; name: string; onClose: () => void }> = ({ stickers, name, onClose }) => {
+export const PrintPanel: React.FC<{ stickers: string[]; name: string; onClose: () => void }> = ({ stickers, name, onClose }) => {
   const [useCaseId, setUseCaseId] = useState('mixed');
   const [copies, setCopies] = useState(1);
   const [printing, setPrinting] = useState<PlacedSticker[][] | null>(null);
@@ -811,6 +842,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   // Once the pack is complete: hold the big stickers for a moment, then shrink them and bring in the sticker room below.
   const [compact, setCompact] = useState(false);
   const [posted, setPosted] = useState(false);
+  const archivedRun = useRef(-1); // runId whose stickers are already in the print archive
   const [isBackup, setIsBackup] = useState(false);
   const [engine, setEngine] = useState<EngineMode>('claude');
   // Default to Gemini painting as soon as the server reports a Gemini key.
@@ -934,6 +966,25 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
     }
   }, [done, name, style, posted, isBackup]);
 
+  // Keep every finished sticker at print quality in the archive (wall opt-in only controls the public wall).
+  useEffect(() => {
+    if (!allDone || !done.length || isBackup || archivedRun.current === runId.current) return;
+    const run = runId.current;
+    archivedRun.current = run;
+    const packId = Math.random().toString(36).slice(2, 10);
+    const packAt = Date.now();
+    void (async () => {
+      for (const s of done) {
+        try {
+          const [full, thumb] = await Promise.all([thumbnail(s.png!, 1200, 0.92), thumbnail(s.png!)]);
+          await postJson('/api/archive', { full, thumb, packId, packAt, caption: s.idea.caption, name, style });
+        } catch {
+          /* archive is best-effort; never interrupt the show */
+        }
+      }
+    })();
+  }, [allDone, done, isBackup, name, style]);
+
   useEffect(() => {
     if (allDone && wallOptIn && done.length && !posted && !isBackup) void postToWall();
   }, [allDone, wallOptIn, done.length, posted, isBackup, postToWall]);
@@ -1018,6 +1069,15 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
             <Setup
               {...{ name, setName, style, setStyle, vibe, setVibe, count, setCount, consent, setConsent, wallOptIn, setWallOptIn }}
               onGo={() => setPhase('camera')}
+              onUpload={async (f) => {
+                try {
+                  const url = await processUploadedImageAsSquare(f);
+                  setPhoto(url);
+                  void generate(url);
+                } catch (er) {
+                  window.alert(er instanceof Error ? er.message : 'Could not read that photo. Try a JPG or PNG.');
+                }
+              }}
               onBackup={() => void playBackup()}
               onRoom={() => setShowRoom(true)}
               backupCount={health?.backupStickers ?? 0}

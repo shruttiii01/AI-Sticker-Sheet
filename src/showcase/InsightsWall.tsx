@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Home, Lightbulb, Maximize2, RotateCcw } from 'lucide-react';
+import { Home, Lightbulb, Maximize2, Printer, RotateCcw } from 'lucide-react';
+import PrintArchive from './PrintArchive';
 import { BrandMark, CountUp, GOLD, SAFFRON, ease, sfx, toggleFullscreen } from './ui';
 
 type Tally = Record<string, number>;
@@ -103,6 +104,7 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
   const [d, setD] = useState<Insights | null>(null);
   const [wall, setWall] = useState<WallItem[]>([]);
   const [tip, setTip] = useState(0);
+  const [showArchive, setShowArchive] = useState(false);
   const lastWall = useRef(0);
 
   useEffect(() => {
@@ -136,7 +138,7 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
   }, []);
 
   const reset = async () => {
-    if (!window.confirm('Reset all live insights and clear the sticker wall?')) return;
+    if (!window.confirm('Reset all live insights and clear the sticker wall? (The print archive is kept.)')) return;
     await fetch('/api/insights/reset', { method: 'POST' });
     lastWall.current = 0;
     setWall([]);
@@ -167,6 +169,9 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
           </div>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowArchive(true)} title="Every sticker made today, ready to reprint" className="px-4 py-2.5 rounded-xl glass text-white text-sm font-semibold flex items-center gap-2 cursor-pointer">
+            <Printer className="w-4 h-4" /> Print archive
+          </button>
           <button onClick={() => void reset()} title="Reset insights" className="p-2.5 rounded-xl glass text-white/60 cursor-pointer">
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -282,6 +287,7 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
           </div>
         </div>
       )}
+      <AnimatePresence>{showArchive && <PrintArchive onClose={() => setShowArchive(false)} />}</AnimatePresence>
     </div>
   );
 }

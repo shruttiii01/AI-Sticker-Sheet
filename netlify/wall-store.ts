@@ -111,3 +111,76 @@ export async function resetAll() {
   const { blobs } = await store.list({ prefix: "w-" });
   await Promise.all(blobs.map((b) => store.delete(b.key)));
 }
+
+/* ---------------- Sticker archive (every sticker, print quality, kept for printing later) ---------------- */
+const archiveStore = () => getStore({ name: "sticker-archive", consistency: "strong" });
+const IMG_RE = /^data:image\/(png|jpeg|webp);base64,/;
+
+export interface ArchiveMeta {
+  id: string;
+  packId: string;
+  packAt: number;
+  at: number;
+  name: string;
+  caption: string;
+  style: string;
+}
+
+const clean = (v: unknown, n: number) => String(v ?? "").slice(0, n);
+const safeId = (v: unknown) => String(v ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 24);
+
+/** Store one sticker: print-quality image + thumbnail + metadata. */
+export async function archivePost(body: any): Promise<string | null> {
+  const full = String(body?.full ?? "");
+  const thumb = String(body?.thumb ?? "");
+  if (!IMG_RE.test(full) || full.length > 4_500_000 || !IMG_RE.test(thumb) || thumb.length > 400_000) return null;
+  const packId = safeId(body?.packId) || Math.random().toString(36).slice(2, 10);
+  const packAt = Number(body?.packAt) || Date.now();
+  const id = Math.random().toString(36).slice(2, 10);
+  const meta: ArchiveMeta = {
+    id, packId, packAt, at: Date.now(),
+    name: clean(body?.name, 30), caption: clean(body?.caption, 40), style: clean(body?.style, 30),
+  };
+  const store = archiveStore();
+  await Promise.all([
+    store.set(`i-${id}-full`, full),
+    store.set(`i-${id}-thumb`, thumb),
+  ]);
+  await store.setJSON(`m-${String(packAt).padStart(14, "0")}-${packId}-${id}`, meta);
+  return id;
+}
+
+/** Newest first, up to `limit` stickers. */
+export async function archiveList(limit = 600): Promise<ArchiveMeta[]> {
+  const store = archiveStore();
+  const { blobs } = await store.list({ prefix: "m-" });
+  const keys = blobs.map((b) => b.key).sort().reverse().slice(0, limit);
+  const metas = await Promise.all(keys.map((k) => store.get(k, { type: "json" }).catch(() => null)));
+  return (metas.filter(Boolean) as ArchiveMeta[]).sort((a, b) => b.packAt - a.packAt || a.at - b.at);
+}
+
+export async function archiveImage(id: string, variant: "full" | "thumb"): Promise<Response> {
+  const data = (await archiveStore().get(`i-${safeId(id)}-${variant}`, { type: "text" })) as string | null;
+  const m = data?.match(/^data:(image\/(?:png|jpeg|webp));base64,(.*)$/s);
+  if (!m) return new Response("Not found", { status: 404 });
+  const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+  return new Response(bytes, {
+    headers: { "Content-Type": m[1], "Cache-Control": "public, max-age=31536000, immutable" },
+  });
+}
+
+/** Delete a whole pack (or one sticker when `id` is given). */
+export async function archiveDelete(packId: string, id?: string) {
+  const store = archiveStore();
+  const { blobs } = await store.list({ prefix: "m-" });
+  const p = safeId(packId);
+  const sid = id ? safeId(id) : "";
+  const hits = blobs.map((b) => b.key).filter((k) => k.includes(`-${p}-`) && (!sid || k.endsWith(`-${sid}`)));
+  await Promise.all(
+    hits.flatMap((k) => {
+      const itemId = k.slice(k.lastIndexOf("-") + 1);
+      return [store.delete(k), store.delete(`i-${itemId}-full`), store.delete(`i-${itemId}-thumb`)];
+    }),
+  );
+  return hits.length;
+}

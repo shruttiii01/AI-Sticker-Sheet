@@ -282,6 +282,66 @@ export function registerShowcaseRoutes(app: Express) {
     res.json({ ok: true, id: item.id });
   });
 
+  /* ---------------- Sticker archive: every sticker at print quality ---------------- */
+  const ARCHIVE_DIR = path.join(DATA_DIR, 'archive');
+  fs.mkdirSync(ARCHIVE_DIR, { recursive: true });
+  const IMG_RE = /^data:image\/(png|jpeg|webp);base64,/;
+  const safeId = (v: unknown) => String(v ?? '').replace(/[^a-z0-9]/gi, '').slice(0, 24);
+  interface ArchiveMeta { id: string; packId: string; packAt: number; at: number; name: string; caption: string; style: string }
+  let archive = load<{ items: ArchiveMeta[] }>('archive.json', { items: [] });
+
+  app.post('/api/archive', (req: Request, res: Response) => {
+    const full = String(req.body?.full ?? '');
+    const thumb = String(req.body?.thumb ?? '');
+    if (!IMG_RE.test(full) || full.length > 4_500_000 || !IMG_RE.test(thumb) || thumb.length > 400_000) {
+      res.status(400).json({ error: 'Invalid sticker image.' });
+      return;
+    }
+    const id = Math.random().toString(36).slice(2, 10);
+    const meta: ArchiveMeta = {
+      id,
+      packId: safeId(req.body?.packId) || Math.random().toString(36).slice(2, 10),
+      packAt: Number(req.body?.packAt) || Date.now(),
+      at: Date.now(),
+      name: String(req.body?.name ?? '').slice(0, 30),
+      caption: String(req.body?.caption ?? '').slice(0, 40),
+      style: String(req.body?.style ?? '').slice(0, 30),
+    };
+    fs.writeFileSync(path.join(ARCHIVE_DIR, `${id}-full.txt`), full);
+    fs.writeFileSync(path.join(ARCHIVE_DIR, `${id}-thumb.txt`), thumb);
+    archive.items.push(meta);
+    save('archive.json', archive);
+    res.json({ ok: true, id });
+  });
+
+  app.get('/api/archive', (_req: Request, res: Response) => {
+    const items = [...archive.items].sort((a, b) => b.packAt - a.packAt || a.at - b.at).slice(0, 600);
+    res.json({ items });
+  });
+
+  app.get('/api/archive/img', (req: Request, res: Response) => {
+    const id = safeId(req.query.id);
+    const v = req.query.v === 'full' ? 'full' : 'thumb';
+    try {
+      const data = fs.readFileSync(path.join(ARCHIVE_DIR, `${id}-${v}.txt`), 'utf8');
+      const m = data.match(/^data:(image\/(?:png|jpeg|webp));base64,(.*)$/s);
+      if (!m) throw new Error('bad');
+      res.set('Content-Type', m[1]).set('Cache-Control', 'public, max-age=31536000, immutable').send(Buffer.from(m[2], 'base64'));
+    } catch {
+      res.status(404).send('Not found');
+    }
+  });
+
+  app.delete('/api/archive', (req: Request, res: Response) => {
+    const pack = safeId(req.query.pack);
+    const id = req.query.id ? safeId(req.query.id) : '';
+    const gone = archive.items.filter((i) => i.packId === pack && (!id || i.id === id));
+    for (const g of gone) for (const v of ['full', 'thumb']) fs.rm(path.join(ARCHIVE_DIR, `${g.id}-${v}.txt`), () => {});
+    archive.items = archive.items.filter((i) => !gone.includes(i));
+    save('archive.json', archive);
+    res.json({ ok: true, removed: gone.length });
+  });
+
   app.get('/api/wall', (req: Request, res: Response) => {
     const since = Number(req.query.since) || 0;
     res.json({ items: wall.items.filter((i) => i.at > since) });

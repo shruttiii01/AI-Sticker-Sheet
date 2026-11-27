@@ -65,6 +65,7 @@ export async function postWall(body: any) {
     caption: String(body?.caption ?? "").slice(0, 40),
     name: String(body?.name ?? "").slice(0, 30),
     style: String(body?.style ?? "").slice(0, 30),
+    packId: String(body?.packId ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 24),
   };
   const store = wallStore();
   await store.setJSON(`w-${String(at).padStart(14, "0")}-${id}`, item);
@@ -85,6 +86,23 @@ export async function getWall(since: number) {
     .filter((k) => Number(k.split("-")[1]) > since);
   const items = (await Promise.all(keys.map((k) => store.get(k, { type: "json" }).catch(() => null)))).filter(Boolean) as any[];
   return items.filter((i) => i.at > since);
+}
+
+/** Remove a pack's stickers (or one sticker by id) from the public wall. The print archive is untouched. */
+export async function deleteWall(packId: string, id?: string) {
+  const store = wallStore();
+  const { blobs } = await store.list({ prefix: "w-" });
+  const p = packId.replace(/[^a-z0-9]/gi, "");
+  let removed = 0;
+  await Promise.all(
+    blobs.map(async (b) => {
+      if (id && b.key.endsWith(`-${id}`)) { await store.delete(b.key); removed++; return; }
+      if (!p) return;
+      const item = (await store.get(b.key, { type: "json" }).catch(() => null)) as { packId?: string } | null;
+      if (item?.packId === p) { await store.delete(b.key); removed++; }
+    }),
+  );
+  return removed;
 }
 
 export async function getInsights() {
@@ -151,10 +169,11 @@ export async function archivePost(body: any): Promise<string | null> {
 }
 
 /** Newest first, up to `limit` stickers. */
-export async function archiveList(limit = 600): Promise<ArchiveMeta[]> {
+export async function archiveList(limit = 600, pack?: string): Promise<ArchiveMeta[]> {
   const store = archiveStore();
   const { blobs } = await store.list({ prefix: "m-" });
-  const keys = blobs.map((b) => b.key).sort().reverse().slice(0, limit);
+  const p = pack ? safeId(pack) : "";
+  const keys = blobs.map((b) => b.key).filter((k) => !p || k.includes(`-${p}-`)).sort().reverse().slice(0, limit);
   const metas = await Promise.all(keys.map((k) => store.get(k, { type: "json" }).catch(() => null)));
   return (metas.filter(Boolean) as ArchiveMeta[]).sort((a, b) => b.packAt - a.packAt || a.at - b.at);
 }

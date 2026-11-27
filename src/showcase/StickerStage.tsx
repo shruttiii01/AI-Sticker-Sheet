@@ -842,7 +842,14 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   // Once the pack is complete: hold the big stickers for a moment, then shrink them and bring in the sticker room below.
   const [compact, setCompact] = useState(false);
   const [posted, setPosted] = useState(false);
+  const [wallState, setWallState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
   const archivedRun = useRef(-1); // runId whose stickers are already in the print archive
+  const packRef = useRef<{ run: number; id: string; at: number }>({ run: -1, id: '', at: 0 });
+  // One id per pack, shared by the live wall and the print archive so a wall sticker opens its whole pack.
+  const packInfo = () => {
+    if (packRef.current.run !== runId.current) packRef.current = { run: runId.current, id: Math.random().toString(36).slice(2, 10), at: Date.now() };
+    return packRef.current;
+  };
   const [isBackup, setIsBackup] = useState(false);
   const [engine, setEngine] = useState<EngineMode>('claude');
   // Default to Gemini painting as soon as the server reports a Gemini key.
@@ -881,6 +888,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
       celebrated.current = false;
       setCompact(false);
       setPosted(false);
+      setWallState('idle');
       setIsBackup(false);
       setError(null);
       setCharacter(null);
@@ -910,6 +918,7 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
     celebrated.current = false;
     setCompact(false);
     setPosted(false);
+    setWallState('idle');
     setIsBackup(true);
     setError(null);
     const { draws } = await fetch('/api/stickers/backup').then(
@@ -955,24 +964,28 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
   }, [phase, allDone, done.length, compact]);
 
   const postToWall = useCallback(async () => {
-    if (posted || isBackup) return;
+    if (isBackup || wallState === 'sending' || wallState === 'done' || !done.length) return;
     setPosted(true);
+    setWallState('sending');
+    const run = runId.current;
+    let sent = 0;
     for (const s of done) {
       try {
-        await postJson('/api/wall', { img: await thumbnail(s.png!), caption: s.idea.caption, name, style });
+        await postJson('/api/wall', { img: await thumbnail(s.png!), caption: s.idea.caption, name, style, packId: packInfo().id });
+        sent++;
       } catch {
-        /* wall is best-effort */
+        /* keep going; report below */
       }
     }
-  }, [done, name, style, posted, isBackup]);
+    if (run === runId.current) setWallState(sent ? 'done' : 'error');
+  }, [done, name, style, isBackup, wallState]);
 
   // Keep every finished sticker at print quality in the archive (wall opt-in only controls the public wall).
   useEffect(() => {
     if (!allDone || !done.length || isBackup || archivedRun.current === runId.current) return;
     const run = runId.current;
     archivedRun.current = run;
-    const packId = Math.random().toString(36).slice(2, 10);
-    const packAt = Date.now();
+    const { id: packId, at: packAt } = packInfo();
     void (async () => {
       for (const s of done) {
         try {
@@ -1185,38 +1198,40 @@ export default function StickerStage({ onHome, onInsights }: { onHome: () => voi
           initial={{ y: 100 }}
           animate={{ y: 0 }}
           transition={{ delay: 0.6, ease, duration: 0.7 }}
-          className="fixed bottom-0 inset-x-0 z-30 flex flex-wrap items-center justify-center gap-3 pb-5 pt-10 bg-gradient-to-t from-[#050d26] via-[#050d26]/85 to-transparent"
+          className="fixed bottom-0 inset-x-0 z-30 flex flex-wrap items-center justify-center gap-2 xl:gap-3 pb-4 pt-8 px-3 bg-gradient-to-t from-[#050d26] via-[#050d26]/85 to-transparent"
         >
           <button
             disabled={!done.length}
             onClick={() => setShowPrint(true)}
-            className="shimmer-btn rounded-2xl px-7 py-3.5 font-extrabold text-[#0b1f4b] flex items-center gap-2 cursor-pointer disabled:opacity-40"
+            className="shimmer-btn rounded-2xl px-4 py-2.5 text-sm xl:px-7 xl:py-3.5 xl:text-base font-extrabold text-[#0b1f4b] flex items-center gap-2 cursor-pointer disabled:opacity-40"
             style={{ background: `linear-gradient(135deg,${GOLD},#ffd37a)` }}
           >
-            <Printer className="w-5 h-5" /> Print stickers <kbd className="text-[10px] opacity-60 border border-current rounded px-1">P</kbd>
+            <Printer className="w-5 h-5" /> Print stickers <kbd className="hidden xl:inline text-[10px] opacity-60 border border-current rounded px-1">P</kbd>
           </button>
           <button
             disabled={!done.length}
             onClick={() => { setRoomFocus(null); setShowRoom(true); }}
-            className="shimmer-btn rounded-2xl px-7 py-3.5 font-extrabold text-white flex items-center gap-2 cursor-pointer disabled:opacity-40"
+            className="shimmer-btn rounded-2xl px-4 py-2.5 text-sm xl:px-7 xl:py-3.5 xl:text-base font-extrabold text-white flex items-center gap-2 cursor-pointer disabled:opacity-40"
             style={{ background: 'linear-gradient(135deg,#ff2e88,#7b2ff7)' }}
           >
-            <Smartphone className="w-5 h-5" /> Stick it everywhere <kbd className="text-[10px] opacity-70 border border-current rounded px-1">M</kbd>
+            <Smartphone className="w-5 h-5" /> Stick it everywhere <kbd className="hidden xl:inline text-[10px] opacity-70 border border-current rounded px-1">M</kbd>
           </button>
           {!isBackup && (
             <button
-              disabled={!allDone || posted}
-              onClick={() => void postToWall()}
-              className="rounded-2xl px-5 py-3.5 font-semibold text-white glass flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              disabled={!allDone || wallState === 'sending'}
+              onClick={() => (wallState === 'done' ? onInsights() : void postToWall())}
+              title={wallState === 'done' ? 'Open the live wall' : 'Post this pack to the live wall'}
+              className={`rounded-2xl px-4 py-2.5 text-sm xl:px-5 xl:py-3.5 xl:text-base font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 ${wallState === 'done' ? 'text-[#0b1f4b] bg-emerald-300' : wallState === 'error' ? 'text-white bg-red-500/80' : 'text-white glass'}`}
             >
-              <Send className="w-5 h-5" /> {posted ? 'On the live wall ✓' : 'Send to live wall'}
+              <Send className="w-5 h-5" />
+              {wallState === 'sending' ? 'Sending to wall…' : wallState === 'done' ? 'On the live wall ✓ · View' : wallState === 'error' ? 'Wall failed · Retry' : 'Send to live wall'}
             </button>
           )}
-          <button onClick={onInsights} className="rounded-2xl px-5 py-3.5 font-semibold text-white glass flex items-center gap-2 cursor-pointer">
-            <BarChart3 className="w-5 h-5" /> Insights <ArrowRight className="w-4 h-4" />
+          <button onClick={onInsights} className="rounded-2xl px-4 py-2.5 text-sm xl:px-5 xl:py-3.5 xl:text-base font-semibold text-white glass flex items-center gap-2 cursor-pointer">
+            <BarChart3 className="w-5 h-5" /> Live wall <ArrowRight className="w-4 h-4" />
           </button>
-          <button onClick={nextPerson} className="rounded-2xl px-5 py-3.5 font-semibold text-white glass flex items-center gap-2 cursor-pointer">
-            <UserPlus className="w-5 h-5" /> Next person <kbd className="text-[10px] opacity-60 border border-current rounded px-1">N</kbd>
+          <button onClick={nextPerson} className="rounded-2xl px-4 py-2.5 text-sm xl:px-5 xl:py-3.5 xl:text-base font-semibold text-white glass flex items-center gap-2 cursor-pointer">
+            <UserPlus className="w-5 h-5" /> Next person <kbd className="hidden xl:inline text-[10px] opacity-60 border border-current rounded px-1">N</kbd>
           </button>
         </motion.div>
       )}

@@ -81,6 +81,7 @@ insights.engines ??= {};
 insights.engineMs ??= {};
 
 interface WallItem {
+  packId?: string;
   id: string;
   img: string;
   caption: string;
@@ -274,6 +275,7 @@ export function registerShowcaseRoutes(app: Express) {
       name: String(req.body?.name ?? '').slice(0, 30),
       style: String(req.body?.style ?? '').slice(0, 30),
       at: Date.now(),
+      packId: String(req.body?.packId ?? '').replace(/[^a-z0-9]/gi, '').slice(0, 24),
     };
     push(wall.items, item, 60);
     insights.counters.wallPosts++;
@@ -314,8 +316,9 @@ export function registerShowcaseRoutes(app: Express) {
     res.json({ ok: true, id });
   });
 
-  app.get('/api/archive', (_req: Request, res: Response) => {
-    const items = [...archive.items].sort((a, b) => b.packAt - a.packAt || a.at - b.at).slice(0, 600);
+  app.get('/api/archive', (req: Request, res: Response) => {
+    const pack = req.query.pack ? safeId(req.query.pack) : '';
+    const items = archive.items.filter((i) => !pack || i.packId === pack).sort((a, b) => b.packAt - a.packAt || a.at - b.at).slice(0, 600);
     res.json({ items });
   });
 
@@ -340,6 +343,15 @@ export function registerShowcaseRoutes(app: Express) {
     archive.items = archive.items.filter((i) => !gone.includes(i));
     save('archive.json', archive);
     res.json({ ok: true, removed: gone.length });
+  });
+
+  app.delete('/api/wall', (req: Request, res: Response) => {
+    const pack = String(req.query.pack ?? '').replace(/[^a-z0-9]/gi, '');
+    const id = String(req.query.id ?? '');
+    const before = wall.items.length;
+    wall.items = wall.items.filter((i) => !((pack && i.packId === pack) || (id && i.id === id)));
+    save('wall.json', wall);
+    res.json({ ok: true, removed: before - wall.items.length });
   });
 
   app.get('/api/wall', (req: Request, res: Response) => {

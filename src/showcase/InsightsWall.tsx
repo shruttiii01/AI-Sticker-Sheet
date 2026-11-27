@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { Home, Lightbulb, Maximize2, Printer, RotateCcw } from 'lucide-react';
 import PrintArchive from './PrintArchive';
+import PackViewer, { type WallPack } from './PackViewer';
 import { BrandMark, CountUp, GOLD, SAFFRON, ease, sfx, toggleFullscreen } from './ui';
 
 type Tally = Record<string, number>;
@@ -19,6 +21,7 @@ interface Insights {
   now: number;
 }
 interface WallItem {
+  packId?: string;
   id: string;
   img: string;
   caption: string;
@@ -105,6 +108,7 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
   const [wall, setWall] = useState<WallItem[]>([]);
   const [tip, setTip] = useState(0);
   const [showArchive, setShowArchive] = useState(false);
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const lastWall = useRef(0);
 
   useEffect(() => {
@@ -143,6 +147,20 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
     lastWall.current = 0;
     setWall([]);
   };
+
+  const packs = useMemo<WallPack[]>(() => {
+    const map = new Map<string, WallPack>();
+    for (const w of wall) {
+      const key = w.packId || `solo-${w.id}`;
+      const p = map.get(key) ?? { key, packId: w.packId || undefined, name: w.name, style: w.style, wallImgs: [], captions: [] };
+      p.wallImgs.push(w.img);
+      p.captions.push(w.caption);
+      map.set(key, p);
+    }
+    return [...map.values()];
+  }, [wall]);
+  const openWallItem = (w: WallItem) => setOpenKey(w.packId || `solo-${w.id}`);
+  const openIndex = openKey ? packs.findIndex((p) => p.key === openKey) : -1;
 
   const c = d?.counters;
   const maxMin = Math.max(1, ...(d?.perMinute ?? [1]));
@@ -238,8 +256,9 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
                     animate={{ opacity: 1, scale: 1, rotate: 0, y: 0 }}
                     transition={{ type: 'spring', stiffness: 200, damping: 16 }}
                     whileHover={{ scale: 1.12, rotate: 3, zIndex: 10 }}
-                    className="relative"
-                    title={`${w.name || 'Guest'} · ${w.caption}`}
+                    className="relative cursor-pointer"
+                    onClick={() => openWallItem(w)}
+                    title={`${w.name || 'Guest'} · ${w.caption} · click to open the pack`}
                   >
                     <img src={w.img} alt={w.caption} className="w-full aspect-square object-contain drop-shadow-[0_10px_18px_rgba(0,0,0,.45)]" />
                     {w.name && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] px-2 rounded-full bg-[#0b1f4b] text-white/80 whitespace-nowrap">{w.name}</span>}
@@ -287,7 +306,28 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
           </div>
         </div>
       )}
+      {createPortal(
+        <>
+      <AnimatePresence>
+        {openIndex >= 0 && (
+          <PackViewer
+            packs={packs}
+            index={openIndex}
+            onIndex={(i) => setOpenKey(packs[i]?.key ?? null)}
+            onClose={() => setOpenKey(null)}
+            onRemove={async (p) => {
+              const q = p.packId ? `pack=${encodeURIComponent(p.packId)}` : `id=${encodeURIComponent(p.key.replace(/^solo-/, ''))}`;
+              await fetch(`/api/wall?${q}`, { method: 'DELETE' });
+              setWall((prev) => prev.filter((w) => (w.packId || `solo-${w.id}`) !== p.key));
+              setOpenKey(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
       <AnimatePresence>{showArchive && <PrintArchive onClose={() => setShowArchive(false)} />}</AnimatePresence>
+        </>,
+        document.body,
+      )}
     </div>
   );
 }

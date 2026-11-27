@@ -13,6 +13,7 @@ export interface WallPack {
   style: string;
   wallImgs: string[];
   captions: string[];
+  ids: string[];
 }
 
 interface ArchiveItem {
@@ -68,7 +69,11 @@ export default function PackViewer({
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      if (showPrint || room) return; // the overlays own the keyboard while open
+      if (showPrint) {
+        if (e.key === 'Escape') setShowPrint(false);
+        return;
+      }
+      if (room) return; // the sticker room handles its own keys (Esc closes it)
       if (e.key === 'Escape') onClose();
       else if (e.key === 'ArrowRight' && index < packs.length - 1) onIndex(index + 1);
       else if (e.key === 'ArrowLeft' && index > 0) onIndex(index - 1);

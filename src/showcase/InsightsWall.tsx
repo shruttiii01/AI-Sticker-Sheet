@@ -148,18 +148,35 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
     setWall([]);
   };
 
-  const packs = useMemo<WallPack[]>(() => {
+  // Group wall stickers into packs. New stickers carry a pack id; older ones (sent before pack ids existed)
+  // are grouped by name when they were sent within a few seconds of each other, which is how a pack posts.
+  const { packs, keyOf } = useMemo(() => {
+    const keyOf = new Map<string, string>();
+    const lastByName = new Map<string, { key: string; at: number }>();
+    for (const w of [...wall].sort((x, y) => x.at - y.at)) {
+      if (w.packId) {
+        keyOf.set(w.id, w.packId);
+        continue;
+      }
+      const name = (w.name || '').trim().toLowerCase();
+      const prev = lastByName.get(name);
+      const key = prev && w.at - prev.at <= 30_000 ? prev.key : `legacy-${w.id}`;
+      lastByName.set(name, { key, at: w.at });
+      keyOf.set(w.id, key);
+    }
     const map = new Map<string, WallPack>();
     for (const w of wall) {
-      const key = w.packId || `solo-${w.id}`;
-      const p = map.get(key) ?? { key, packId: w.packId || undefined, name: w.name, style: w.style, wallImgs: [], captions: [] };
-      p.wallImgs.push(w.img);
-      p.captions.push(w.caption);
+      const key = keyOf.get(w.id)!;
+      const p = map.get(key) ?? { key, packId: w.packId || undefined, name: w.name, style: w.style, wallImgs: [], captions: [], ids: [] };
+      // wall is newest-first; show the pack in the order it was made
+      p.wallImgs.unshift(w.img);
+      p.captions.unshift(w.caption);
+      p.ids.unshift(w.id);
       map.set(key, p);
     }
-    return [...map.values()];
+    return { packs: [...map.values()], keyOf };
   }, [wall]);
-  const openWallItem = (w: WallItem) => setOpenKey(w.packId || `solo-${w.id}`);
+  const openWallItem = (w: WallItem) => setOpenKey(keyOf.get(w.id) ?? null);
   const openIndex = openKey ? packs.findIndex((p) => p.key === openKey) : -1;
 
   const c = d?.counters;
@@ -316,9 +333,9 @@ export default function InsightsWall({ onHome }: { onHome: () => void }) {
             onIndex={(i) => setOpenKey(packs[i]?.key ?? null)}
             onClose={() => setOpenKey(null)}
             onRemove={async (p) => {
-              const q = p.packId ? `pack=${encodeURIComponent(p.packId)}` : `id=${encodeURIComponent(p.key.replace(/^solo-/, ''))}`;
-              await fetch(`/api/wall?${q}`, { method: 'DELETE' });
-              setWall((prev) => prev.filter((w) => (w.packId || `solo-${w.id}`) !== p.key));
+              if (p.packId) await fetch(`/api/wall?pack=${encodeURIComponent(p.packId)}`, { method: 'DELETE' });
+              else await Promise.all(p.ids.map((id) => fetch(`/api/wall?id=${encodeURIComponent(id)}`, { method: 'DELETE' })));
+              setWall((prev) => prev.filter((w) => !p.ids.includes(w.id)));
               setOpenKey(null);
             }}
           />

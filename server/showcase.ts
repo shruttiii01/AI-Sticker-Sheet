@@ -345,6 +345,18 @@ export function registerShowcaseRoutes(app: Express) {
     res.json({ ok: true, removed: gone.length });
   });
 
+  app.put('/api/wall', (req: Request, res: Response) => {
+    const item = wall.items.find((i) => i.id === String(req.body?.id ?? ''));
+    const img = String(req.body?.img ?? '');
+    if (!item || !/^data:image\/(png|jpeg|webp);base64,/.test(img) || img.length > 400_000) {
+      res.status(400).json({ error: 'Not found or invalid image.' });
+      return;
+    }
+    item.img = img;
+    save('wall.json', wall);
+    res.json({ ok: true });
+  });
+
   app.delete('/api/wall', (req: Request, res: Response) => {
     const pack = String(req.query.pack ?? '').replace(/[^a-z0-9]/gi, '');
     const id = String(req.query.id ?? '');

@@ -79,6 +79,19 @@ export async function postWall(body: any) {
   return id;
 }
 
+/** Replace one wall sticker's image (used to re-stamp old stickers with the current badge). */
+export async function replaceWallImage(id: string, img: string) {
+  if (!/^data:image\/(png|jpeg|webp);base64,/.test(img) || img.length > 400_000) return false;
+  const store = wallStore();
+  const { blobs } = await store.list({ prefix: "w-" });
+  const key = blobs.map((b) => b.key).find((k) => k.endsWith(`-${id}`));
+  if (!key) return false;
+  const item = (await store.get(key, { type: "json" })) as Record<string, unknown> | null;
+  if (!item) return false;
+  await store.setJSON(key, { ...item, img });
+  return true;
+}
+
 export async function getWall(since: number) {
   const store = wallStore();
   const { blobs } = await store.list({ prefix: "w-" });

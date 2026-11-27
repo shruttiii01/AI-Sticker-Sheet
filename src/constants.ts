@@ -8,7 +8,6 @@ export const DEFAULT_STICKER_TAG = "#DYPBSAICoE";
 
 export const STICKER_TAG_PRESETS: string[] = [
   "#DYPBSAICoE",
-  "#DYPCOE",
   "#DYPBS",
 ];
 

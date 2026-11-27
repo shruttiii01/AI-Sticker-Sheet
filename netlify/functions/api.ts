@@ -4,7 +4,7 @@ import analyze from "../../api/stickers/analyze.js";
 import draw from "../../api/stickers/draw.js";
 import paint from "../../api/stickers/paint.js";
 import avatar from "../../api/generate-avatar.js";
-import { deleteWall, archiveDelete, archiveImage, archiveList, archivePost, getInsights, getWall, postWall, recordAnalyze, recordDraw, recordError, resetAll } from "../wall-store.js";
+import { replaceWallImage, deleteWall, archiveDelete, archiveImage, archiveList, archivePost, getInsights, getWall, postWall, recordAnalyze, recordDraw, recordError, resetAll } from "../wall-store.js";
 
 /**
  * Netlify adapter: serves the existing Vercel-style handlers in /api behind /api/*,
@@ -29,6 +29,11 @@ export default async (request: Request): Promise<Response> => {
     if (route === "/wall" && request.method === "POST") {
       const id = await postWall(await request.json().catch(() => ({})));
       return id ? Response.json({ ok: true, id }) : Response.json({ error: "Invalid sticker image." }, { status: 400 });
+    }
+    if (route === "/wall" && request.method === "PUT") {
+      const b = (await request.json().catch(() => ({}))) as { id?: string; img?: string };
+      const ok = await replaceWallImage(String(b.id ?? "").replace(/[^a-z0-9]/gi, ""), String(b.img ?? ""));
+      return ok ? Response.json({ ok: true }) : Response.json({ error: "Not found or invalid image." }, { status: 400 });
     }
     if (route === "/wall" && request.method === "DELETE") {
       return Response.json({ ok: true, removed: await deleteWall(url.searchParams.get("pack") ?? "", url.searchParams.get("id") ?? undefined) });

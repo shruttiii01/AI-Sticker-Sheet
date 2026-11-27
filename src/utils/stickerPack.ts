@@ -24,6 +24,8 @@ const PAGE_MARGIN_MM = 8;
 const GAP_MM = 3;
 /** Space between two size bands on the same page. */
 const BAND_GAP_MM = 5;
+/** Stickers are printed on the top half of the A4 sheet only (the bottom half stays blank). */
+export const PRINT_AREA_H_MM = A4.h / 2;
 
 export interface PlacedSticker {
   src: string;
@@ -33,11 +35,11 @@ export interface PlacedSticker {
 }
 
 /**
- * Lays stickers out as straight rectangular grids that fill the whole A4 page, so a
+ * Lays stickers out as straight rectangular grids that fill the top half of the A4 page, so a
  * sheet can be cut apart with a ruler (every row and column lines up).
  *
  * - Each size gets its own band of full rows; the smallest size fills whatever height is left.
- * - `copies` is a minimum: empty cells are filled with more stickers instead of wasting paper.
+ * - One sheet per copy; empty cells are filled with more stickers instead of wasting paper.
  * - Designs are spread so no sticker sits next to (or directly under) the same design,
  *   and every design appears as evenly as possible.
  */
@@ -51,10 +53,10 @@ export function packStickers(
   const n = designs.length;
   const sizes = [...useCase.sizesMm].sort((a, b) => b - a);
   const usableW = A4.w - 2 * PAGE_MARGIN_MM;
-  const maxY = A4.h - PAGE_MARGIN_MM;
+  const maxY = PRINT_AREA_H_MM - PAGE_MARGIN_MM;
 
   const cols = (size: number) => Math.max(1, Math.floor((usableW + GAP_MM) / (size + GAP_MM)));
-  const rowsNeeded = (size: number) => Math.max(1, Math.ceil((n * Math.max(1, copies)) / cols(size)));
+  const rowsNeeded = (size: number) => Math.max(1, Math.ceil(n / cols(size)));
 
   const pages: PlacedSticker[][] = [];
   let page: PlacedSticker[] = [];
@@ -95,9 +97,9 @@ export function packStickers(
 
   const smallest = sizes[sizes.length - 1];
   const fillers = [55, 40, 30, 25, 20].filter((f) => f < smallest);
-  const needs = sizes.map(rowsNeeded);
-
-  for (let guard = 0; guard < 50 && needs.some((r) => r > 0); guard++) {
+  // one half-page sheet per copy; each sheet shows every design it can, biggest sizes first
+  for (let sheet = 0; sheet < Math.max(1, copies); sheet++) {
+    const needs = sizes.map(rowsNeeded);
     page = [];
     y = PAGE_MARGIN_MM;
     prevRow = null;
